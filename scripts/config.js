@@ -165,7 +165,15 @@ const builds = {
     dest: resolve('packages/weex-template-compiler/build.js'),
     format: 'cjs',
     external: Object.keys(require('../packages/weex-template-compiler/package.json').dependencies)
-  }
+  },
+  // Weex runtime framework (CommonJS).
+  'viola-framework': {
+    viola: true,
+    entry: resolve('viola/framework.js'),
+    dest: resolve('packages/viola-vue-framework/index.js'),
+    format: 'es',
+    env: 'development'
+  },
 }
 
 function genConfig (name) {
@@ -177,7 +185,8 @@ function genConfig (name) {
       replace({
         __WEEX__: !!opts.weex,
         __WEEX_VERSION__: weexVersion,
-        __VERSION__: version
+        __VERSION__: version,
+        __VIOLA__: !!opts.viola
       }),
       flow(),
       buble(),

@@ -19,7 +19,12 @@ import { patch } from './patch'
 import platformDirectives from './directives/index'
 import platformComponents from './components/index'
 
+// 1、覆盖 Vue.config 的属性，将其设置为平台特有的一些方法
+// 2、Vue.options.directives 和 Vue.options.components 安装平台特有的指令和组件
+// 3、在 Vue.prototype 上定义 __patch__ 和 $mount
+
 // install platform specific utils
+// 安装平台特定的utils
 Vue.config.mustUseProp = mustUseProp
 Vue.config.isReservedTag = isReservedTag
 Vue.config.isReservedAttr = isReservedAttr
@@ -27,6 +32,7 @@ Vue.config.getTagNamespace = getTagNamespace
 Vue.config.isUnknownElement = isUnknownElement
 
 // install platform runtime directives & components
+// 安装平台特定的 指令 和 组件
 extend(Vue.options.directives, platformDirectives)
 extend(Vue.options.components, platformComponents)
 

@@ -7,6 +7,7 @@ export function createElement (tagName: string, vnode: VNode): Element {
   if (tagName !== 'select') {
     return elm
   }
+  console.log('Vue createElement!!')
   // false or null will remove the attribute but undefined will not
   if (vnode.data && vnode.data.attrs && vnode.data.attrs.multiple !== undefined) {
     elm.setAttribute('multiple', 'multiple')

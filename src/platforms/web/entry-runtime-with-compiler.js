@@ -31,9 +31,12 @@ Vue.prototype.$mount = function (
 
   const options = this.$options
   // resolve template/el and convert to render function
+  // 使用者如果自己写了render函数，那就不走编译环节
   if (!options.render) {
     let template = options.template
     if (template) {
+      // 提供了 template 属性
+      // template传值可以是 id 或字符串
       if (typeof template === 'string') {
         if (template.charAt(0) === '#') {
           template = idToTemplate(template)
@@ -46,6 +49,7 @@ Vue.prototype.$mount = function (
           }
         }
       } else if (template.nodeType) {
+        // template 传值可以是 node
         template = template.innerHTML
       } else {
         if (process.env.NODE_ENV !== 'production') {
@@ -61,14 +65,16 @@ Vue.prototype.$mount = function (
       if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
         mark('compile')
       }
-
+      // 编译成render函数
       const { render, staticRenderFns } = compileToFunctions(template, {
         shouldDecodeNewlines,
         shouldDecodeNewlinesForHref,
         delimiters: options.delimiters,
         comments: options.comments
       }, this)
+      // 将赋值到options的render属性上
       options.render = render
+      // staticRenderFns是为了优化，提取那些后期不用去更新的节点
       options.staticRenderFns = staticRenderFns
 
       /* istanbul ignore if */

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+  <script src="./vue.js"></script>
+</head>
+<body>
+  <div id="app">
+    <div v-for="i in Math.ceil(result.length / 2)">
+      <div v-for="j in 2">
+        {{ result | abc(i, j) }}
+      </div>
+    </div>
+    <test></test>
+  </div>
+</body>
+<script>
+  Vue.filter('abc', function (value, a, b) {
+    var index = ((a - 1) * 2 + b - 1)
+    return value[index];
+  })
+
+  Vue.component('test', {
+    data() {
+      return {
+        count: 0
+      }
+    },
+    template: '<button disable class="test" v-on:click="count++">You clicked me {{ count }} times.</button>'
+  })
+
+  var vm = new Vue({
+    el: '#app',
+    data: {
+      result: ['A', 'B', 'C', 'D'],
+      hook: {
+        prepatch(old, newVNode) {
+          console.log(old, newVNode)
+        }
+      }
+    }
+  });
+
+</script>
+</html>

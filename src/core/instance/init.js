@@ -17,7 +17,7 @@ export function initMixin (Vue: Class<Component>) {
     const vm: Component = this
     // a uid
     vm._uid = uid++
-
+    // 用于测试性能 https://segmentfault.com/a/1190000014479800
     let startTag, endTag
     /* istanbul ignore if */
     if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
@@ -27,14 +27,20 @@ export function initMixin (Vue: Class<Component>) {
     }
 
     // a flag to avoid this being observed
+    // 如果是Vue的实例，则不需要被observe
     vm._isVue = true
     // merge options
     if (options && options._isComponent) {
       // optimize internal component instantiation
       // since dynamic options merging is pretty slow, and none of the
       // internal component options needs special treatment.
+      // 当前这个Vue实例是组件，执行initInternalComponent方法。
+      // 该方法主要就是为vm.$options添加一些属性
       initInternalComponent(vm, options)
     } else {
+      // 当前Vue实例不是组件。
+      // 实例化Vue对象时，调用 mergeOptions 方法。
+      // mergeOptions 主要调用两个方法：resolveConstructorOptions、mergeOptions。
       vm.$options = mergeOptions(
         resolveConstructorOptions(vm.constructor),
         options || {},
@@ -49,12 +55,12 @@ export function initMixin (Vue: Class<Component>) {
     }
     // expose real self
     vm._self = vm
-    initLifecycle(vm)
-    initEvents(vm)
-    initRender(vm)
+    initLifecycle(vm) // vm的生命周期相关变量初始化
+    initEvents(vm)    // 事件监听初始化
+    initRender(vm)    // Render ？？？？
     callHook(vm, 'beforeCreate')
     initInjections(vm) // resolve injections before data/props
-    initState(vm)
+    initState(vm)     // vm的状态初始化，prop/data/computed/method/watch都在这里完成初始化
     initProvide(vm) // resolve provide after data/props
     callHook(vm, 'created')
 

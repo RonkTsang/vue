@@ -704,9 +704,6 @@ Dep.prototype.notify = function notify () {
   }
 };
 
-// the current target watcher being evaluated.
-// this is globally unique because there could be only one
-// watcher being evaluated at any time.
 Dep.target = null;
 var targetStack = [];
 
@@ -1107,11 +1104,6 @@ function dependArray (value) {
 
 /*  */
 
-/**
- * Option overwriting strategies are functions that handle
- * how to merge a parent option value and a child option
- * value into the final value.
- */
 var strats = config.optionMergeStrategies;
 
 /**
@@ -2175,18 +2167,6 @@ function checkProp (
 
 /*  */
 
-// The template compiler attempts to minimize the need for normalization by
-// statically analyzing the template at compile time.
-//
-// For plain HTML markup, normalization can be completely skipped because the
-// generated render function is guaranteed to return Array<VNode>. There are
-// two cases where extra normalization is needed:
-
-// 1. When the children contains components - because a functional component
-// may return an Array instead of a single root. In this case, just a simple
-// normalization is needed - if any child is an Array, we flatten the whole
-// thing with Array.prototype.concat. It is guaranteed to be only 1-level deep
-// because functional components already normalize their own children.
 function simpleNormalizeChildren (children) {
   for (var i = 0; i < children.length; i++) {
     if (Array.isArray(children[i])) {
@@ -3707,9 +3687,6 @@ function resolveInject (inject, vm) {
 
 /*  */
 
-/**
- * Runtime helper for rendering v-for lists.
- */
 function renderList (
   val,
   render
@@ -3741,9 +3718,6 @@ function renderList (
 
 /*  */
 
-/**
- * Runtime helper for rendering <slot>
- */
 function renderSlot (
   name,
   fallback,
@@ -3790,9 +3764,6 @@ function renderSlot (
 
 /*  */
 
-/**
- * Runtime helper for resolving filters
- */
 function resolveFilter (id) {
   return resolveAsset(this.$options, 'filters', id, true) || identity
 }
@@ -3831,9 +3802,6 @@ function checkKeyCodes (
 
 /*  */
 
-/**
- * Runtime helper for merging v-bind="object" into a VNode's data.
- */
 function bindObjectProps (
   data,
   tag,
@@ -4121,13 +4089,10 @@ function mergeProps (to, from) {
 
 // https://github.com/Hanks10100/weex-native-directive/tree/master/component
 
-// listening on native callback
-
 /*  */
 
 /*  */
 
-// inline hooks to be invoked on component VNodes during patch
 var componentVNodeHooks = {
   init: function init (vnode, hydrating) {
     if (
@@ -4365,6 +4330,9 @@ function createElement (
   normalizationType,
   alwaysNormalize
 ) {
+
+  // 兼容不传data的情况
+
   if (Array.isArray(data) || isPrimitive(data)) {
     normalizationType = children;
     children = data;
@@ -4383,6 +4351,16 @@ function _createElement (
   children,
   normalizationType
 ) {
+
+
+  // 如果存在data.__ob__，说明data是被Observer观察的数据
+  // 不能用作虚拟节点的data
+  // 需要抛出警告，并返回一个空节点
+
+  // 被监控的data不能被用作vnode渲染的数据的原因是：
+  // data 在vnode渲染过程中可能会被改变，这样会触发监控，导致不符合预期的操作
+
+
   if (isDef(data) && isDef((data).__ob__)) {
     "development" !== 'production' && warn(
       "Avoid using observed data object as vnode data: " + (JSON.stringify(data)) + "\n" +
@@ -4395,6 +4373,10 @@ function _createElement (
   if (isDef(data) && isDef(data.is)) {
     tag = data.is;
   }
+
+  // 当组件的is属性被设置为一个 falsy 的值
+  // Vue将不会知道要把这个组件渲染成什么
+  // 所以渲染一个空节点
   if (!tag) {
     // in case of component :is set to falsy value
     return createEmptyVNode()
@@ -4412,6 +4394,8 @@ function _createElement (
     }
   }
   // support single function children as default scoped slot
+  // 作用于插槽
+  // 将数组第一个作为默认值
   if (Array.isArray(children) &&
     typeof children[0] === 'function'
   ) {
@@ -4427,14 +4411,19 @@ function _createElement (
   var vnode, ns;
   if (typeof tag === 'string') {
     var Ctor;
+    // 获取标签名的命名空间
     ns = (context.$vnode && context.$vnode.ns) || config.getTagNamespace(tag);
+    // 判断是否为保留标签
     if (config.isReservedTag(tag)) {
       // platform built-in elements
+      // 如果是保留标签,就创建一个这样的vnode
       vnode = new VNode(
         config.parsePlatformTagName(tag), data, children,
         undefined, undefined, context
       );
     } else if (isDef(Ctor = resolveAsset(context.$options, 'components', tag))) {
+      // 如果不是保留标签，将尝试从vm的components上查找是否有这个标签的定义
+      // 如果找到了这个标签的定义，就以此创建虚拟组件节点
       // component
       vnode = createComponent(Ctor, data, context, children, tag);
     } else {
@@ -4447,6 +4436,8 @@ function _createElement (
       );
     }
   } else {
+    // 当tag不是字符串的时候，认为tag是组件的构造类
+    // 直接创建
     // direct component options / constructor
     vnode = createComponent(tag, data, context, children);
   }
@@ -4461,6 +4452,9 @@ function _createElement (
   }
 }
 
+/**
+ * 应用 namespace
+ */
 function applyNS (vnode, ns, force) {
   vnode.ns = ns;
   if (vnode.tag === 'foreignObject') {
@@ -4744,6 +4738,48 @@ stateMixin(Vue);
 eventsMixin(Vue);
 lifecycleMixin(Vue);
 renderMixin(Vue);
+
+
+
+// 对应如下：
+// initMixin(Vue)    src/core/instance/init.js **************************************************
+// Vue.prototype._init = function (options?: Object) { }
+
+// stateMixin(Vue)    src/core/instance/state.js **************************************************
+// Vue.prototype.$data
+// Vue.prototype.$set = set
+// Vue.prototype.$delete = del
+// Vue.prototype.$watch = function () { }
+
+// renderMixin(Vue)    src/core/instance/render.js **************************************************
+// Vue.prototype.$nextTick = function (fn: Function) { }
+// Vue.prototype._render = function (): VNode { }
+// Vue.prototype._s = _toString
+// Vue.prototype._v = createTextVNode
+// Vue.prototype._n = toNumber
+// Vue.prototype._e = createEmptyVNode
+// Vue.prototype._q = looseEqual
+// Vue.prototype._i = looseIndexOf
+// Vue.prototype._m = function () { }
+// Vue.prototype._o = function () { }
+// Vue.prototype._f = function resolveFilter(id) { }
+// Vue.prototype._l = function () { }
+// Vue.prototype._t = function () { }
+// Vue.prototype._b = function () { }
+// Vue.prototype._k = function () { }
+
+// eventsMixin(Vue)    src/core/instance/events.js **************************************************
+// Vue.prototype.$on = function (event: string, fn: Function): Component { }
+// Vue.prototype.$once = function (event: string, fn: Function): Component { }
+// Vue.prototype.$off = function (event?: string, fn?: Function): Component { }
+// Vue.prototype.$emit = function (event: string): Component { }
+
+// lifecycleMixin(Vue)    src/core/instance/lifecycle.js **************************************************
+// Vue.prototype._mount = function () { }
+// Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) { }
+// Vue.prototype._updateFromParent = function () { }
+// Vue.prototype.$forceUpdate = function () { }
+// Vue.prototype.$destroy = function () { }
 
 /*  */
 
@@ -5102,8 +5138,6 @@ Vue.version = '2.5.17-beta.0';
 
 /*  */
 
-// these are reserved for web because they are directly compiled away
-// during template compilation
 var isReservedAttr = makeMap('style,class');
 
 // attributes that should be using props for binding
@@ -5300,9 +5334,6 @@ var isTextInputType = makeMap('text,number,password,search,email,tel,url');
 
 /*  */
 
-/**
- * Query an element selector if it's not an element already.
- */
 function query (el) {
   if (typeof el === 'string') {
     var selected = document.querySelector(el);
@@ -5325,6 +5356,7 @@ function createElement$1 (tagName, vnode) {
   if (tagName !== 'select') {
     return elm
   }
+  console.log('Vue createElement!!');
   // false or null will remove the attribute but undefined will not
   if (vnode.data && vnode.data.attrs && vnode.data.attrs.multiple !== undefined) {
     elm.setAttribute('multiple', 'multiple');
@@ -5452,6 +5484,14 @@ var emptyNode = new VNode('', {}, []);
 
 var hooks = ['create', 'activate', 'update', 'remove', 'destroy'];
 
+/*
+  判断两个VNode节点是否是同一个节点，需要满足以下条件
+  key相同
+  tag（当前节点的标签名）相同
+  isComment（是否为注释节点）相同
+  是否data（当前节点对应的对象，包含了具体的一些数据信息，是一个VNodeData类型，可以参考VNodeData类型中的数据信息）都有定义
+  当标签是<input>的时候，type 必须相同
+*/
 function sameVnode (a, b) {
   return (
     a.key === b.key && (
@@ -5493,7 +5533,7 @@ function createPatchFunction (backend) {
 
   var modules = backend.modules;
   var nodeOps = backend.nodeOps;
-
+  // 收集回调函数？？？
   for (i = 0; i < hooks.length; ++i) {
     cbs[hooks[i]] = [];
     for (j = 0; j < modules.length; ++j) {
@@ -5838,11 +5878,15 @@ function createPatchFunction (backend) {
         oldEndVnode = oldCh[--oldEndIdx];
         newEndVnode = newCh[--newEndIdx];
       } else if (sameVnode(oldStartVnode, newEndVnode)) { // Vnode moved right
+        // 这时候说明oldStartVnode已经跑到了oldEndVnode后面去了，
+        // 进行patchVnode的同时还需要将真实DOM节点移动到oldEndVnode的后面。
         patchVnode(oldStartVnode, newEndVnode, insertedVnodeQueue);
         canMove && nodeOps.insertBefore(parentElm, oldStartVnode.elm, nodeOps.nextSibling(oldEndVnode.elm));
         oldStartVnode = oldCh[++oldStartIdx];
         newEndVnode = newCh[--newEndIdx];
       } else if (sameVnode(oldEndVnode, newStartVnode)) { // Vnode moved left
+        // 这说明oldEndVnode跑到了oldStartVnode的前面，
+        // 进行patchVnode的同时真实的DOM节点移动到了oldStartVnode的前面。
         patchVnode(oldEndVnode, newStartVnode, insertedVnodeQueue);
         canMove && nodeOps.insertBefore(parentElm, oldEndVnode.elm, oldStartVnode.elm);
         oldEndVnode = oldCh[--oldEndIdx];
@@ -5902,10 +5946,11 @@ function createPatchFunction (backend) {
   }
 
   function patchVnode (oldVnode, vnode, insertedVnodeQueue, removeOnly) {
+    // 两个VNode节点相同则直接返回
     if (oldVnode === vnode) {
       return
     }
-
+    console.log('start patch Node', oldVnode, vnode);
     var elm = vnode.elm = oldVnode.elm;
 
     if (isTrue(oldVnode.isAsyncPlaceholder)) {
@@ -5921,6 +5966,11 @@ function createPatchFunction (backend) {
     // note we only do this if the vnode is cloned -
     // if the new node is not cloned it means the render functions have been
     // reset by the hot-reload-api and we need to do a proper re-render.
+    /*
+      如果新旧VNode都是静态的，同时它们的key相同（代表同一节点），
+      并且新的VNode是clone或者是标记了once（标记v-once属性，只渲染一次），
+      那么只需要替换elm以及componentInstance即可。
+    */
     if (isTrue(vnode.isStatic) &&
       isTrue(oldVnode.isStatic) &&
       vnode.key === oldVnode.key &&
@@ -5933,30 +5983,43 @@ function createPatchFunction (backend) {
     var i;
     var data = vnode.data;
     if (isDef(data) && isDef(i = data.hook) && isDef(i = i.prepatch)) {
+      // 调用钩子
+      // i = data.hook.prepatch，存在，则 ./create-component componentVNodeHooks
       i(oldVnode, vnode);
     }
 
     var oldCh = oldVnode.children;
     var ch = vnode.children;
     if (isDef(data) && isPatchable(vnode)) {
+      // 调用update回调以及update钩子
       for (i = 0; i < cbs.update.length; ++i) { cbs.update[i](oldVnode, vnode); }
       if (isDef(i = data.hook) && isDef(i = i.update)) { i(oldVnode, vnode); }
     }
     if (isUndef(vnode.text)) {
+      // 这个VNode节点没有text文本
       if (isDef(oldCh) && isDef(ch)) {
+        // 新老节点均有children子节点，则对子节点进行diff操作，调用updateChildren
         if (oldCh !== ch) { updateChildren(elm, oldCh, ch, insertedVnodeQueue, removeOnly); }
       } else if (isDef(ch)) {
+        // 如果老节点没有子节点而新节点存在子节点
+        // 先清空elm的文本内容
+        // 然后为当前节点加入子节点
         if (isDef(oldVnode.text)) { nodeOps.setTextContent(elm, ''); }
         addVnodes(elm, null, ch, 0, ch.length - 1, insertedVnodeQueue);
       } else if (isDef(oldCh)) {
+        // 新节点没有子节点而老节点有子节点的时候，则移除所有ele的子节点
         removeVnodes(elm, oldCh, 0, oldCh.length - 1);
       } else if (isDef(oldVnode.text)) {
+        // 当新老节点都无子节点的时候，只是文本的替换
+        // 因为这个逻辑中新节点text不存在，所以直接去除ele的文本
         nodeOps.setTextContent(elm, '');
       }
     } else if (oldVnode.text !== vnode.text) {
+      // 当新老节点text不一样时，直接替换这段文本
       nodeOps.setTextContent(elm, vnode.text);
     }
     if (isDef(data)) {
+      // 调用postpatch钩子
       if (isDef(i = data.hook) && isDef(i = i.postpatch)) { i(oldVnode, vnode); }
     }
   }
@@ -6089,6 +6152,7 @@ function createPatchFunction (backend) {
 
   return function patch (oldVnode, vnode, hydrating, removeOnly) {
     if (isUndef(vnode)) {
+      // vnode 不存在则直接调用销毁钩子
       if (isDef(oldVnode)) { invokeDestroyHook(oldVnode); }
       return
     }
@@ -6098,12 +6162,15 @@ function createPatchFunction (backend) {
 
     if (isUndef(oldVnode)) {
       // empty mount (likely as component), create new root element
+      // oldVnode 未定义的时候，其实也就是 root 节点，创建一个新的节点
       isInitialPatch = true;
       createElm(vnode, insertedVnodeQueue);
     } else {
+      // 标记旧的 VNode 是否有 nodeType
       var isRealElement = isDef(oldVnode.nodeType);
       if (!isRealElement && sameVnode(oldVnode, vnode)) {
         // patch existing root node
+        // 是同一个节点的时候直接修改现有的节点
         patchVnode(oldVnode, vnode, insertedVnodeQueue, removeOnly);
       } else {
         if (isRealElement) {
@@ -6111,10 +6178,12 @@ function createPatchFunction (backend) {
           // check if this is server-rendered content and if we can perform
           // a successful hydration.
           if (oldVnode.nodeType === 1 && oldVnode.hasAttribute(SSR_ATTR)) {
+            // 当旧的VNode是服务端渲染的元素，hydrating 记为 true
             oldVnode.removeAttribute(SSR_ATTR);
             hydrating = true;
           }
           if (isTrue(hydrating)) {
+            // 合并到真实DOM上
             if (hydrate(oldVnode, vnode, insertedVnodeQueue)) {
               invokeInsertHook(vnode, insertedVnodeQueue, true);
               return oldVnode
@@ -6130,10 +6199,12 @@ function createPatchFunction (backend) {
           }
           // either not server-rendered, or hydration failed.
           // create an empty node and replace it
+          // 如果不是服务端渲染或者合并到真实DOM失败，则创建一个空的VNode节点替换它
           oldVnode = emptyNodeAt(oldVnode);
         }
 
         // replacing existing element
+        // 取代现有元素
         var oldElm = oldVnode.elm;
         var parentElm = nodeOps.parentNode(oldElm);
 
@@ -6182,11 +6253,13 @@ function createPatchFunction (backend) {
         if (isDef(parentElm)) {
           removeVnodes(parentElm, [oldVnode], 0, 0);
         } else if (isDef(oldVnode.tag)) {
+          // destroy钩子
           invokeDestroyHook(oldVnode);
         }
       }
     }
 
+    // insert 钩子
     invokeInsertHook(vnode, insertedVnodeQueue, isInitialPatch);
     return vnode.elm
   }
@@ -7040,10 +7113,6 @@ function genDefaultModel (
 
 /*  */
 
-// normalize v-model event tokens that can only be determined at runtime.
-// it's important to place the event as the first in the array because
-// the whole point is ensuring the v-model callback gets called before
-// user-attached handlers.
 function normalizeEvents (on) {
   /* istanbul ignore if */
   if (isDef(on[RANGE_TOKEN])) {
@@ -7949,8 +8018,6 @@ var platformModules = [
 
 /*  */
 
-// the directive module should be applied last, after all
-// built-in modules have been applied.
 var modules = platformModules.concat(baseModules);
 
 var patch = createPatchFunction({ nodeOps: nodeOps, modules: modules });
@@ -7960,7 +8027,6 @@ var patch = createPatchFunction({ nodeOps: nodeOps, modules: modules });
  * properties to Elements.
  */
 
-/* istanbul ignore if */
 if (isIE9) {
   // http://www.matts411.com/post/internet-explorer-9-oninput/
   document.addEventListener('selectionchange', function () {
@@ -8096,7 +8162,6 @@ function trigger (el, type) {
 
 /*  */
 
-// recursively search for possible transition defined inside the component root
 function locateNode (vnode) {
   return vnode.componentInstance && (!vnode.data || !vnode.data.transition)
     ? locateNode(vnode.componentInstance._vnode)
@@ -8534,7 +8599,6 @@ var platformComponents = {
 
 /*  */
 
-// install platform specific utils
 Vue.config.mustUseProp = mustUseProp;
 Vue.config.isReservedTag = isReservedTag;
 Vue.config.isReservedAttr = isReservedAttr;
@@ -8542,6 +8606,7 @@ Vue.config.getTagNamespace = getTagNamespace;
 Vue.config.isUnknownElement = isUnknownElement;
 
 // install platform runtime directives & components
+// 安装平台特定的 指令 和 组件
 extend(Vue.options.directives, platformDirectives);
 extend(Vue.options.components, platformComponents);
 
@@ -8769,7 +8834,6 @@ var isNonPhrasingTag = makeMap(
  * http://erik.eae.net/simplehtmlparser/simplehtmlparser.js
  */
 
-// Regular Expressions for parsing tags and attributes
 var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
 // could use https://www.w3.org/TR/1999/REC-xml-names-19990114/#NT-QName
 // but for Vue templates we can enforce a simple charset
@@ -9128,8 +9192,8 @@ function parse (
 
   var stack = [];
   var preserveWhitespace = options.preserveWhitespace !== false;
-  var root;
-  var currentParent;
+  var root;          // 最终返回出去的AST树根节点
+  var currentParent; // 当前父节点
   var inVPre = false;
   var inPre = false;
   var warned = false;
@@ -10032,6 +10096,8 @@ function genHandlers (
   return res.slice(0, -1) + '}'
 }
 
+// Generate handler code with binding params on Weex
+/* istanbul ignore next */
 function genHandler (
   name,
   handler
@@ -10577,7 +10643,7 @@ function genProps (props) {
   return res.slice(0, -1)
 }
 
-// #3895, #4268
+/* istanbul ignore next */
 function transformSpecialNewlines (text) {
   return text
     .replace(/\u2028/g, '\\u2028')
@@ -10586,8 +10652,6 @@ function transformSpecialNewlines (text) {
 
 /*  */
 
-// these keywords should not appear inside expressions, but operators like
-// typeof, instanceof and in are allowed
 var prohibitedKeywordRE = new RegExp('\\b' + (
   'do,if,for,let,new,try,var,case,else,with,await,break,catch,class,const,' +
   'super,throw,while,yield,delete,export,import,return,switch,default,' +
@@ -10705,6 +10769,7 @@ function createFunction (code, errors) {
 function createCompileToFunctionFn (compile) {
   var cache = Object.create(null);
 
+  /* 带缓存的编译器，同时staticRenderFns以及render函数会被转换成Funtion对象 */
   return function compileToFunctions (
     template,
     options,
@@ -10733,6 +10798,7 @@ function createCompileToFunctionFn (compile) {
     }
 
     // check cache
+    /* 有缓存的时候直接取出缓存中的结果即可 */
     var key = options.delimiters
       ? String(options.delimiters) + template
       : template;
@@ -10741,6 +10807,7 @@ function createCompileToFunctionFn (compile) {
     }
 
     // compile
+    // 编译，将模板 template 编译成AST、render函数以及staticRenderFns函数
     var compiled = compile(template, options);
 
     // check compilation errors/tips
@@ -10760,7 +10827,9 @@ function createCompileToFunctionFn (compile) {
     // turn code into functions
     var res = {};
     var fnGenErrors = [];
+    /* 将render转换成Funtion对象 */
     res.render = createFunction(compiled.render, fnGenErrors);
+    /* 将staticRenderFns全部转化成Funtion对象 */
     res.staticRenderFns = compiled.staticRenderFns.map(function (code) {
       return createFunction(code, fnGenErrors)
     });
@@ -10783,7 +10852,7 @@ function createCompileToFunctionFn (compile) {
         );
       }
     }
-
+    /* 存放在缓存中，以免每次都重新编译 */
     return (cache[key] = res)
   }
 }
@@ -10842,17 +10911,29 @@ function createCompilerCreator (baseCompile) {
 
 /*  */
 
-// `createCompilerCreator` allows creating compilers that use alternative
-// parser/optimizer/codegen, e.g the SSR optimizing compiler.
-// Here we just export a default compiler using the default parts.
 var createCompiler = createCompilerCreator(function baseCompile (
   template,
   options
 ) {
+   /* parse解析得到AST */
   var ast = parse(template.trim(), options);
+  /*
+    将AST进行优化
+    优化的目标：生成模板AST，检测不需要进行DOM改变的静态子树。
+    一旦检测到这些静态树，我们就能做以下这些事情：
+    1.把它们变成常数，这样我们就再也不需要每次重新渲染时创建新的节点了。
+    2.在patch的过程中直接跳过。
+
+    optimize的主要作用是标记static静态节点
+    后面当update更新界面时，会有一个patch的过程，diff算法会直接跳过静态节点，从而减少了比较的过程
+ */
   if (options.optimize !== false) {
     optimize(ast, options);
   }
+  /*
+  generate是将AST转化成render funtion字符串，
+  得到结果是render的字符串以及staticRenderFns字符串。
+  */
   var code = generate(ast, options);
   return {
     ast: ast,
@@ -10868,7 +10949,6 @@ var compileToFunctions = ref$1.compileToFunctions;
 
 /*  */
 
-// check whether current browser encodes a char inside attribute values
 var div;
 function getShouldDecode (href) {
   div = div || document.createElement('div');

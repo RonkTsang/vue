@@ -33,6 +33,9 @@ export function createElement (
   normalizationType: any,
   alwaysNormalize: boolean
 ): VNode | Array<VNode> {
+
+  // 兼容不传data的情况
+
   if (Array.isArray(data) || isPrimitive(data)) {
     normalizationType = children
     children = data
@@ -51,6 +54,16 @@ export function _createElement (
   children?: any,
   normalizationType?: number
 ): VNode | Array<VNode> {
+
+
+  // 如果存在data.__ob__，说明data是被Observer观察的数据
+  // 不能用作虚拟节点的data
+  // 需要抛出警告，并返回一个空节点
+
+  // 被监控的data不能被用作vnode渲染的数据的原因是：
+  // data 在vnode渲染过程中可能会被改变，这样会触发监控，导致不符合预期的操作
+
+
   if (isDef(data) && isDef((data: any).__ob__)) {
     process.env.NODE_ENV !== 'production' && warn(
       `Avoid using observed data object as vnode data: ${JSON.stringify(data)}\n` +
@@ -63,6 +76,10 @@ export function _createElement (
   if (isDef(data) && isDef(data.is)) {
     tag = data.is
   }
+
+  // 当组件的is属性被设置为一个 falsy 的值
+  // Vue将不会知道要把这个组件渲染成什么
+  // 所以渲染一个空节点
   if (!tag) {
     // in case of component :is set to falsy value
     return createEmptyVNode()
@@ -80,6 +97,8 @@ export function _createElement (
     }
   }
   // support single function children as default scoped slot
+  // 作用于插槽
+  // 将数组第一个作为默认值
   if (Array.isArray(children) &&
     typeof children[0] === 'function'
   ) {
@@ -95,14 +114,19 @@ export function _createElement (
   let vnode, ns
   if (typeof tag === 'string') {
     let Ctor
+    // 获取标签名的命名空间
     ns = (context.$vnode && context.$vnode.ns) || config.getTagNamespace(tag)
+    // 判断是否为保留标签
     if (config.isReservedTag(tag)) {
       // platform built-in elements
+      // 如果是保留标签,就创建一个这样的vnode
       vnode = new VNode(
         config.parsePlatformTagName(tag), data, children,
         undefined, undefined, context
       )
     } else if (isDef(Ctor = resolveAsset(context.$options, 'components', tag))) {
+      // 如果不是保留标签，将尝试从vm的components上查找是否有这个标签的定义
+      // 如果找到了这个标签的定义，就以此创建虚拟组件节点
       // component
       vnode = createComponent(Ctor, data, context, children, tag)
     } else {
@@ -115,6 +139,8 @@ export function _createElement (
       )
     }
   } else {
+    // 当tag不是字符串的时候，认为tag是组件的构造类
+    // 直接创建
     // direct component options / constructor
     vnode = createComponent(tag, data, context, children)
   }
@@ -129,6 +155,9 @@ export function _createElement (
   }
 }
 
+/**
+ * 应用 namespace
+ */
 function applyNS (vnode, ns, force) {
   vnode.ns = ns
   if (vnode.tag === 'foreignObject') {

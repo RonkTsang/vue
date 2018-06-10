@@ -58,6 +58,12 @@ export function createASTElement (
   }
 }
 
+/* parse整体的过程：
+
+通过parseHtml来一步步解析传入html字符串的标签、元素、文本、注释..
+parseHtml解析过程中，调用传入的start，end，chars方法来生成AST语法树
+ */
+
 /**
  * Convert HTML string to AST.
  */
@@ -79,8 +85,8 @@ export function parse (
 
   const stack = []
   const preserveWhitespace = options.preserveWhitespace !== false
-  let root
-  let currentParent
+  let root          // 最终返回出去的AST树根节点
+  let currentParent // 当前父节点
   let inVPre = false
   let inPre = false
   let warned = false
@@ -145,6 +151,9 @@ export function parse (
       }
 
       if (!inVPre) {
+        // 判断有没有 v-pre 指令的元素。如果有的话 element.pre = true
+        // 官网有介绍：<span v-pre>{{ this will not be compiled }}</span>
+        // 跳过这个元素和它的子元素的编译过程。可以用来显示原始 Mustache 标签。跳过大量没有指令的节点会加快编译。
         processPre(element)
         if (element.pre) {
           inVPre = true

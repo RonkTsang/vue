@@ -13,14 +13,22 @@ import { makeMap, no } from 'shared/util'
 import { isNonPhrasingTag } from 'web/compiler/util'
 
 // Regular Expressions for parsing tags and attributes
+
+// 匹配 < div id = "index" > 的 id = "index" 属性部分
 const attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/
 // could use https://www.w3.org/TR/1999/REC-xml-names-19990114/#NT-QName
 // but for Vue templates we can enforce a simple charset
 const ncname = '[a-zA-Z_][\\w\\-\\.]*'
 const qnameCapture = `((?:${ncname}\\:)?${ncname})`
+
+// 匹配起始标签
 const startTagOpen = new RegExp(`^<${qnameCapture}`)
 const startTagClose = /^\s*(\/?)>/
+
+// 匹配结束标签
 const endTag = new RegExp(`^<\\/${qnameCapture}[^>]*>`)
+
+// 匹配DOCTYPE、注释等特殊标签
 const doctype = /^<!DOCTYPE [^>]+>/i
 // #7298: escape - to avoid being pased as HTML comment when inlined in page
 const comment = /^<!\--/
@@ -63,8 +71,10 @@ export function parseHTML (html, options) {
   let index = 0
   let last, lastTag
   while (html) {
+    // 保留 html 副本
     last = html
     // Make sure we're not in a plaintext content element like script/style
+    // 如果没有lastTag，并确保我们不是在一个纯文本内容元素中：script、style、textarea
     if (!lastTag || !isPlainTextElement(lastTag)) {
       let textEnd = html.indexOf('<')
       if (textEnd === 0) {
