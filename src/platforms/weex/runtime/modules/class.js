@@ -52,6 +52,14 @@ function getStyle (oldClassList: Array<string>, classList: Array<string>, ctx: C
   // style is a weex-only injected object
   // compiled from <style> tags in weex files
   const stylesheet: any = ctx.$options.style || {}
+
+  /*
+    ctx.$options.style 格式为
+    {
+      className: { ...style }，
+      className: { ...style }
+    }
+  */
   const result = {}
   classList.forEach(name => {
     const style = stylesheet[name]

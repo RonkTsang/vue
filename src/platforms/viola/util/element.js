@@ -51,8 +51,10 @@ export function query (el: string | Element, document: Object) {
     removeAttribute() { return false }
   }
   // 自己虚拟出一个节点放入domTree中，后续 Vue 将用新element替换这个placeHolder
-  const placeholder = doc.createElement('div')
-  doc.body.appendChild(placeholder)
-  Object.assign(placeholder, p)
-  return placeholder
+  // const placeholder = doc.createElement('div')
+  // doc.body.appendChild(placeholder)
+  // Object.assign(placeholder, p)
+  // return placeholder
+  Object.assign(doc.body, p)
+  return doc.body
 }
