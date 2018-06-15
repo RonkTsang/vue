@@ -16,7 +16,7 @@ function updateClass (oldVnode, vnode) {
   }
 
   let cls = genClassForVnode(vnode)
-  el.setAttr({'class': cls})
+  el.setAttrs({'class': cls})
   // const oldClassList = makeClassList(oldData)
   // const classList = makeClassList(data)
 

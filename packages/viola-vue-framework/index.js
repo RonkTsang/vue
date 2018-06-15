@@ -5285,7 +5285,9 @@ function setAttribute (node, key, val) {
 }
 
 function setStyleScope (node, scopeId) {
-  node.setAttr('@styleScope', scopeId);
+  // add Element API for set scope
+  node['_styleScope'] = scopeId;
+  // node.setAttr('@styleScope', scopeId)
 }
 
 
@@ -6477,7 +6479,7 @@ function updateClass (oldVnode, vnode) {
   }
 
   var cls = genClassForVnode(vnode);
-  el.setAttr({'class': cls});
+  el.setAttrs({'class': cls});
   // const oldClassList = makeClassList(oldData)
   // const classList = makeClassList(data)
 

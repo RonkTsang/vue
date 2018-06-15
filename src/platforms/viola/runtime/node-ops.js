@@ -77,5 +77,7 @@ export function setAttribute (node, key, val) {
 }
 
 export function setStyleScope (node, scopeId) {
-  node.setAttr('@styleScope', scopeId)
+  // add Element API for set scope
+  node['_styleScope'] = scopeId
+  // node.setAttr('@styleScope', scopeId)
 }
