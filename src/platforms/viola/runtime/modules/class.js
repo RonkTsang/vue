@@ -1,4 +1,4 @@
-import { extend, isObject } from 'shared/util'
+import { extend, isObject, isUndef, isDef } from 'shared/util'
 import { genClassForVnode, concat, stringifyClass } from 'web/util/index'
 
 function updateClass (oldVnode, vnode) {
@@ -15,8 +15,14 @@ function updateClass (oldVnode, vnode) {
     return
   }
 
-  let cls = genClassForVnode(vnode)
-  el.setAttrs({'class': cls})
+  const cls = genClassForVnode(vnode) // like 'a b c'
+  const oldCls = genClassForVnode(oldVnode)
+
+  if (cls == oldCls) return
+
+  const classList = cls.split(' ')
+  el.test = getStyle(classList, vnode)
+  el.setAttrs({ 'class': cls })
   // const oldClassList = makeClassList(oldData)
   // const classList = makeClassList(data)
 
@@ -34,41 +40,74 @@ function updateClass (oldVnode, vnode) {
   // }
 }
 
-function makeClassList (data) {
-  const classList = []
-  // unlike web, weex vnode staticClass is an Array
-  const staticClass = data.staticClass
-  const dataClass = data.class
-  if (staticClass) {
-    classList.push.apply(classList, staticClass)
-  }
-  if (Array.isArray(dataClass)) {
-    classList.push.apply(classList, dataClass)
-  } else if (isObject(dataClass)) {
-    classList.push.apply(classList, Object.keys(dataClass).filter(className => dataClass[className]))
-  }
-  return classList
-}
-
-function getStyle (oldClassList, classList, ctx) {
-  // style is a weex-only injected object
-  // compiled from <style> tags in weex files
-  const stylesheet = ctx.$options.style || {}
-  const result = {}
-  classList.forEach(name => {
-    const style = stylesheet[name]
-    extend(result, style)
-  })
-  oldClassList.forEach(name => {
-    const style = stylesheet[name]
-    for (const key in style) {
-      if (!result.hasOwnProperty(key)) {
-        result[key] = ''
+function getStyle (classList, vnode) {
+  let res = {},
+    stylesheet = vnode.context.$options._stylesheet
+  classList.reduce((res, className) => {
+    const styleDescriptor = stylesheet[className]
+    if (styleDescriptor) {
+      extend(res, styleDescriptor.style)
+      // todo attr selector
+      if (styleDescriptor.attrs) {
+        let attrStyle = styleDescriptor.attrs,
+          vnodeAttr = vnode.data.attrs
+        if (isEmptyObj(vnodeAttr)) return
+        for (const k in attrStyle) {
+          let vnodeAttrValue = vnodeAttr[k],
+            attrStyleCollection = attrStyle[k]
+          if (isDef(vnodeAttrValue)) {
+            const value = attrStyle[k]
+            console.log('有属性样式~~', vnodeAttr[k], value)
+          }
+        }
       }
     }
-  })
-  return result
+  }, res)
+  return res
 }
+
+function isEmptyObj (obj) {
+  for (const key in obj) {
+    return false
+  }
+  return true
+}
+
+// function makeClassList (data) {
+//   const classList = []
+//   // unlike web, weex vnode staticClass is an Array
+//   const staticClass = data.staticClass
+//   const dataClass = data.class
+//   if (staticClass) {
+//     classList.push.apply(classList, staticClass)
+//   }
+//   if (Array.isArray(dataClass)) {
+//     classList.push.apply(classList, dataClass)
+//   } else if (isObject(dataClass)) {
+//     classList.push.apply(classList, Object.keys(dataClass).filter(className => dataClass[className]))
+//   }
+//   return classList
+// }
+
+// function getStyle (oldClassList, classList, ctx) {
+//   // style is a weex-only injected object
+//   // compiled from <style> tags in weex files
+//   const stylesheet = ctx.$options.style || {}
+//   const result = {}
+//   classList.forEach(name => {
+//     const style = stylesheet[name]
+//     extend(result, style)
+//   })
+//   oldClassList.forEach(name => {
+//     const style = stylesheet[name]
+//     for (const key in style) {
+//       if (!result.hasOwnProperty(key)) {
+//         result[key] = ''
+//       }
+//     }
+//   })
+//   return result
+// }
 
 export default {
   create: updateClass,
