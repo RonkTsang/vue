@@ -21,7 +21,8 @@ function updateClass (oldVnode, vnode) {
   if (cls == oldCls) return
 
   const classList = cls.split(' ')
-  el.test = getStyle(classList, vnode)
+  let classStyle = getStyle(classList, vnode)
+  el.setStyle(classStyle)
   el.setAttrs({ 'class': cls })
   // const oldClassList = makeClassList(oldData)
   // const classList = makeClassList(data)
@@ -53,11 +54,13 @@ function getStyle (classList, vnode) {
           vnodeAttr = vnode.data.attrs
         if (isEmptyObj(vnodeAttr)) return
         for (const k in attrStyle) {
-          let vnodeAttrValue = vnodeAttr[k],
-            attrStyleCollection = attrStyle[k]
-          if (isDef(vnodeAttrValue)) {
-            const value = attrStyle[k]
-            console.log('有属性样式~~', vnodeAttr[k], value)
+          let vnodeAttrVal = vnodeAttr[k]
+            // attrStyleCollection = attrStyle[k]
+          if (isDef(vnodeAttrVal)) {
+            const attrStyleVal = attrStyle[k]
+            let attrStyleObj = vnodeAttrVal === '' ? attrStyleVal : attrStyleVal[vnodeAttrVal]
+            extend(res, attrStyleObj)
+            // console.log('有属性样式~~', vnodeAttr[k], value)
           }
         }
       }

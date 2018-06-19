@@ -6442,7 +6442,8 @@ function updateClass (oldVnode, vnode) {
   if (cls == oldCls) { return }
 
   var classList = cls.split(' ');
-  el.test = getStyle(classList, vnode);
+  var classStyle = getStyle(classList, vnode);
+  el.setStyle(classStyle);
   el.setAttrs({ 'class': cls });
   // const oldClassList = makeClassList(oldData)
   // const classList = makeClassList(data)
@@ -6474,11 +6475,13 @@ function getStyle (classList, vnode) {
           vnodeAttr = vnode.data.attrs;
         if (isEmptyObj(vnodeAttr)) { return }
         for (var k in attrStyle) {
-          var vnodeAttrValue = vnodeAttr[k],
-            attrStyleCollection = attrStyle[k];
-          if (isDef(vnodeAttrValue)) {
-            var value = attrStyle[k];
-            console.log('有属性样式~~', vnodeAttr[k], value);
+          var vnodeAttrVal = vnodeAttr[k];
+            // attrStyleCollection = attrStyle[k]
+          if (isDef(vnodeAttrVal)) {
+            var attrStyleVal = attrStyle[k];
+            var attrStyleObj = vnodeAttrVal === '' ? attrStyleVal : attrStyleVal[vnodeAttrVal];
+            extend(res, attrStyleObj);
+            // console.log('有属性样式~~', vnodeAttr[k], value)
           }
         }
       }
