@@ -26,6 +26,7 @@
     "build:ssr": "npm run build -- web-runtime-cjs,web-server-renderer",
     "build:weex": "npm run build -- weex",
     "dev:viola": "rollup -w -c scripts/config.js --environment TARGET:viola-framework",
+    "dev:viola:scoped": "rollup -w -c scripts/config.js --environment TARGET:viola-scoped",
     "build:viola": "npm run build -- viola",
     "test": "npm run lint && flow check && npm run test:types && npm run test:cover && npm run test:e2e -- --env phantomjs && npm run test:ssr && npm run test:weex",
     "test:unit": "karma start test/unit/karma.unit.config.js",

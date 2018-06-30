@@ -24,6 +24,21 @@ const weexFactoryPlugin = {
   }
 }
 
+const violaFactoryPlugin = {
+  intro () {
+    return 'export default function (exports, document) {'
+  },
+  outro () {
+    return '}'
+  }
+}
+
+const violaEntryPlugin = {
+  intro() {
+    return `import VueScopeUp from './scopedVue'`
+  }
+}
+
 const aliases = require('./alias')
 const resolve = p => {
   const base = p.split('/')[0]
@@ -166,14 +181,23 @@ const builds = {
     format: 'cjs',
     external: Object.keys(require('../packages/weex-template-compiler/package.json').dependencies)
   },
-  // Weex runtime framework (CommonJS).
+  // viola vue scoped (es6).
+  'viola-scoped': {
+    viola: true,
+    entry: resolve('viola/scoped-vue.js'),
+    dest: resolve('packages/viola-vue-framework/scopedVue.js'),
+    format: 'cjs',
+    plugins: [violaFactoryPlugin]
+  },
+  // viola runtime framework (es6).
   'viola-framework': {
     viola: true,
     entry: resolve('viola/framework.js'),
     dest: resolve('packages/viola-vue-framework/index.js'),
     format: 'es',
-    env: 'development'
-  },
+    env: 'development',
+    plugins: [violaEntryPlugin]
+  }
 }
 
 function genConfig (name) {

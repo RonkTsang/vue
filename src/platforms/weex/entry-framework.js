@@ -4,6 +4,13 @@
 // $flow-disable-line
 const VueFactory = require('./factory')
 
+// VueFactory is like
+// module.exports = function factory( exports, document ) {
+//     ... (vue source code come here  )
+//    exports.Vue = Vue
+// } "
+// it means that running VueFactory(exports, document) , we can inject the document to Vue's running Env, and get Vue Constructor by exports.Vue
+
 const instanceOptions: { [key: string]: WeexInstanceOption } = {}
 
 /**
@@ -14,8 +21,8 @@ export function createInstanceContext (
   runtimeContext: WeexRuntimeContext,
   data: Object = {}
 ): WeexInstanceContext {
-  const weex: Weex = runtimeContext.weex
-  const instance: WeexInstanceOption = instanceOptions[instanceId] = {
+  const weex: Weex = runtimeContext.weex                                // weex 为 一个 WeexInstance 实例
+  const instance: WeexInstanceOption = instanceOptions[instanceId] = {  // 存储每个实例的配置
     instanceId,
     config: weex.config,
     document: weex.document,
@@ -23,7 +30,7 @@ export function createInstanceContext (
   }
 
   // Each instance has a independent `Vue` module instance
-  const Vue = instance.Vue = createVueModuleInstance(instanceId, weex)
+  const Vue = instance.Vue = createVueModuleInstance(instanceId, weex)  //
 
   // DEPRECATED
   const timerAPIs = getInstanceTimer(instanceId, weex.requireModule)

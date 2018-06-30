@@ -516,7 +516,9 @@ export function createPatchFunction (backend) {
     if (oldVnode === vnode) {
       return
     }
-    console.log('start patch Node', oldVnode, vnode)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('start patch Node', oldVnode, vnode)
+    }
     const elm = vnode.elm = oldVnode.elm
 
     if (isTrue(oldVnode.isAsyncPlaceholder)) {

@@ -43,7 +43,7 @@ export function isUnknownElement (tag?: string): boolean {
   return false
 }
 
-export function query (el: string | Element, document: Object) {
+export function query (el: string | Element) {
   // vue 在后续mount过程需要 hasAttribute 和 removeAttribute
   // make vue happy :)
   let p = {
@@ -55,6 +55,6 @@ export function query (el: string | Element, document: Object) {
   // doc.body.appendChild(placeholder)
   // Object.assign(placeholder, p)
   // return placeholder
-  Object.assign(doc.body, p)
-  return doc.body
+  Object.assign(document.body, p)
+  return document.body
 }

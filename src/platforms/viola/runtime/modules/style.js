@@ -1,4 +1,5 @@
 import { extend, cached, camelize } from 'shared/util'
+import { diffObject, isEmptyObj } from 'viola/util/ops'
 
 const normalize = cached(camelize)
 
@@ -9,7 +10,7 @@ function createStyle (oldVnode, vnode) {
   }
   const elm = vnode.elm
   elm.setStyle(vnode.data.staticStyle)
-  updateStyle(oldVnode, vnode)
+  return updateStyle(oldVnode, vnode)
 }
 
 function updateStyle (oldVnode, vnode) {
@@ -20,24 +21,25 @@ function updateStyle (oldVnode, vnode) {
   const elm = vnode.elm
   const oldStyle = oldVnode.data.style || {}
   let style = vnode.data.style || {}
-
-  const needClone = style.__ob__
-
   // handle array syntax
   if (Array.isArray(style)) {
     style = vnode.data.style = toObject(style)
   }
 
-  // clone the style for future updates,
-  // in case the user mutates the style object in-place.
-  if (needClone) {
+  // clone observed objects, as the user probably wants to mutate it
+  if (style.__ob__) {
     style = vnode.data.style = extend({}, style)
+  }
+  // get difference between styles
+  let mutations = diffObject(oldStyle, style)
+  if (!isEmptyObj(mutations)) {
+    elm.setStyle(mutations)
   }
 
   // merge style
-  let mergedStyle = Object.assign({}, oldStyle, style)
+  // let mergedStyle = Object.assign({}, oldStyle, style)
   // and set
-  elm.setStyle(mergedStyle)
+  // elm.setStyle(mergedStyle)
 }
 
 function toObject (arr) {

@@ -2,21 +2,21 @@ import TextNode from './text-node'
 
 export const namespaceMap = {}
 
-export function createElement (tagName) {
-  return doc.createElement(tagName)
+export function createElement (tagName, vnode) {
+  return document.createElement(tagName)
 }
 
-export function createElementNS (namespace, tagName) {
-  return doc.createElement(namespace + ':' + tagName)
+export function createElementNS(namespace, tagName, vnode) {
+  return document.createElement(namespace + ':' + tagName)
 }
 
-export function createTextNode (text) {
-  return doc.createTextNode(text)
+export function createTextNode(text, vnode) {
+  return document.createTextNode(text)
   // return new TextNode(text)
 }
 
-export function createComment (text) {
-  return doc.createComment(text)
+export function createComment(text, vnode) {
+  return document.createComment(text)
 }
 
 export function insertBefore (

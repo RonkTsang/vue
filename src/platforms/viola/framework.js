@@ -1,3 +1,11 @@
-import Vue from './runtime/index'
+// import VueScopeUp from './scopedVue'
 
-export default Vue
+export function intoCTX(ctx) {
+  let taker = {}
+  VueScopeUp(taker, ctx.document)
+  return taker.Vue
+}
+
+export default {
+  intoCTX
+}
