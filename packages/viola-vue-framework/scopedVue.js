@@ -693,9 +693,6 @@ Dep.prototype.notify = function notify () {
   }
 };
 
-// the current target watcher being evaluated.
-// this is globally unique because there could be only one
-// watcher being evaluated at any time.
 Dep.target = null;
 var targetStack = [];
 
@@ -1096,11 +1093,6 @@ function dependArray (value) {
 
 /*  */
 
-/**
- * Option overwriting strategies are functions that handle
- * how to merge a parent option value and a child option
- * value into the final value.
- */
 var strats = config.optionMergeStrategies;
 
 /**
@@ -2161,18 +2153,6 @@ function checkProp (
 
 /*  */
 
-// The template compiler attempts to minimize the need for normalization by
-// statically analyzing the template at compile time.
-//
-// For plain HTML markup, normalization can be completely skipped because the
-// generated render function is guaranteed to return Array<VNode>. There are
-// two cases where extra normalization is needed:
-
-// 1. When the children contains components - because a functional component
-// may return an Array instead of a single root. In this case, just a simple
-// normalization is needed - if any child is an Array, we flatten the whole
-// thing with Array.prototype.concat. It is guaranteed to be only 1-level deep
-// because functional components already normalize their own children.
 function simpleNormalizeChildren (children) {
   for (var i = 0; i < children.length; i++) {
     if (Array.isArray(children[i])) {
@@ -3702,9 +3682,6 @@ function resolveInject (inject, vm) {
 
 /*  */
 
-/**
- * Runtime helper for rendering v-for lists.
- */
 function renderList (
   val,
   render
@@ -3736,9 +3713,6 @@ function renderList (
 
 /*  */
 
-/**
- * Runtime helper for rendering <slot>
- */
 function renderSlot (
   name,
   fallback,
@@ -3785,9 +3759,6 @@ function renderSlot (
 
 /*  */
 
-/**
- * Runtime helper for resolving filters
- */
 function resolveFilter (id) {
   return resolveAsset(this.$options, 'filters', id, true) || identity
 }
@@ -3826,9 +3797,6 @@ function checkKeyCodes (
 
 /*  */
 
-/**
- * Runtime helper for merging v-bind="object" into a VNode's data.
- */
 function bindObjectProps (
   data,
   tag,
@@ -4163,13 +4131,10 @@ function mergeProps (to, from) {
 
 // https://github.com/Hanks10100/weex-native-directive/tree/master/component
 
-// listening on native callback
-
 /*  */
 
 /*  */
 
-// inline hooks to be invoked on component VNodes during patch
 var componentVNodeHooks = {
   init: function init (vnode, hydrating) {
     if (
@@ -5210,7 +5175,6 @@ function initGlobalAPI (Vue) {
   initAssetRegisters(Vue);
 }
 
-// initGlobalAPI 的作用是在 Vue 构造函数上挂载静态属性和方法
 initGlobalAPI(Vue);
 
 Object.defineProperty(Vue.prototype, '$isServer', {
@@ -5234,6 +5198,9 @@ Vue.version = '2.5.17-beta.0';
 var namespaceMap = {};
 
 function createElement$1 (tagName, vnode) {
+  if (tagName === 'text') {
+    return document.createTextNode()
+  }
   return document.createElement(tagName)
 }
 
@@ -5243,7 +5210,6 @@ function createElementNS(namespace, tagName, vnode) {
 
 function createTextNode(text, vnode) {
   return document.createTextNode(text)
-  // return new TextNode(text)
 }
 
 function createComment(text, vnode) {
@@ -5267,17 +5233,13 @@ function removeChild (node, child) {
 }
 
 function appendChild (node, child) {
-  // if (child.nodeType === 3) {
-  //   if (node.type === 'text') {
-  //     node.setAttr('value', child.text)
-  //     child.parentNode = node
-  //   } else {
-  //     const text = createElement('text')
-  //     text.setAttr('value', child.text)
-  //     node.appendChild(text)
-  //   }
-  //   return
-  // }
+  // if child and node are text
+  if (child.nodeType === 3 && node.nodeType === 3) {
+    node.setText(child.text);
+    // set parentNode to child for update
+    child.parentNode = node;
+    return
+  }
 
   node.appendChild(child);
   child.setInNative && child.setInNative();
@@ -5296,10 +5258,11 @@ function tagName (node) {
 }
 
 function setTextContent (node, text) {
-  if (node.nodeType === 3) {
+  // set text to parent because that we set the vaule to parent in appendChild()
+  if (node.parentNode.nodeType === 3) {
+    node.parentNode.setText(text);
+  } else {
     node.setText(text);
-  } else if (node.parentNode) {
-    node.parentNode.setAttr(value, text);
   }
 }
 
@@ -6434,8 +6397,6 @@ var attrs = {
 
 /*  */
 
-// these are reserved for web because they are directly compiled away
-// during template compilation
 var isReservedAttr = makeMap('style,class');
 
 // attributes that should be using props for binding
@@ -6535,10 +6496,6 @@ function stringifyObject (value) {
 }
 
 /*  */
-
-/**
- * Query an element selector if it's not an element already.
- */
 
 function updateClass (oldVnode, vnode) {
   var el = vnode.elm;
@@ -6765,8 +6722,6 @@ var style = {
   update: updateStyle
 }
 
-// import transition from './transition'
-
 var platformModules = [
   attrs,
   klass,
@@ -6775,8 +6730,6 @@ var platformModules = [
 
 /*  */
 
-// the directive module should be applied last, after all
-// built-in modules have been applied.
 var modules = platformModules.concat(baseModules);
 
 var patch = createPatchFunction({
@@ -7274,7 +7227,6 @@ function query$1 (el) {
   return document.body
 }
 
-// install platform specific utils
 Vue.config.mustUseProp = mustUseProp$1;
 Vue.config.isReservedTag = isReservedTag$1;
 Vue.config.isRuntimeComponent = isRuntimeComponent;

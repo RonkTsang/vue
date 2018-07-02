@@ -274,6 +274,10 @@ export function parse (
       if (text) {
         let res
         if (!inVPre && text !== ' ' && (res = parseText(text, delimiters))) {
+          // if (__VIOLA__) {
+          //   // ignore new line
+          //   text.replace('\n', '')
+          // }
           children.push({
             type: 2,
             expression: res.expression,
@@ -281,6 +285,10 @@ export function parse (
             text
           })
         } else if (text !== ' ' || !children.length || children[children.length - 1].text !== ' ') {
+          if (__VIOLA__) {
+            // add trim because that ignore empty String casued by new line
+            if (!(text = text.trim())) return
+          }
           children.push({
             type: 3,
             text
