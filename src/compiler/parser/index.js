@@ -272,12 +272,14 @@ export function parse (
         // only preserve whitespace if its not right after a starting tag
         : preserveWhitespace && children.length ? ' ' : ''
       if (text) {
+
+        if (__VIOLA__) {
+          // add this filter to delete unnecessary blank and \n
+          text = text.replace(/\s{1,}/g, ' ').trim()
+        }
+
         let res
         if (!inVPre && text !== ' ' && (res = parseText(text, delimiters))) {
-          // if (__VIOLA__) {
-          //   // ignore new line
-          //   text.replace('\n', '')
-          // }
           children.push({
             type: 2,
             expression: res.expression,

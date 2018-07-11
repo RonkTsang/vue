@@ -56,7 +56,7 @@ function updateAttrs (oldVnode: VNodeWithData, vnode: VNodeWithData) {
   // get difference between attributes
   mutations = diffObject(oldAttrs, attrs)
   if (!isEmptyObj(mutations)) {
-    elm.setAttrs(mutations, true)
+    elm.setAttrs(mutations)
   }
   // for (const key in mutations) {
   //   elm.setAttrs(mutations, true)

@@ -1,26 +1,41 @@
-import { extend, cached, camelize } from 'shared/util'
+import { extend, cached, camelize, isUndef } from 'shared/util'
 import { diffObject, isEmptyObj } from 'viola/util/ops'
 
 const normalize = cached(camelize)
 
 function createStyle (oldVnode, vnode) {
-  if (!vnode.data.staticStyle) {
-    updateStyle(oldVnode, vnode)
-    return
-  }
-  const elm = vnode.elm
-  elm.setStyle(vnode.data.staticStyle)
+  const elm = vnode.elm,
+    staticStyle = vnode.data.staticStyle
+  // if we got the static style
+  staticStyle && elm.setStyle(staticStyle)
+  // default that the dynamic style cover the static
   return updateStyle(oldVnode, vnode)
 }
 
 function updateStyle (oldVnode, vnode) {
-  if (!oldVnode.data.style && !vnode.data.style) {
+
+  const data = vnode.data
+  const oldData = oldVnode.data
+
+  if (isUndef(data.staticStyle) && isUndef(data.style) &&
+    isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  ) {
     return
   }
+
+  // if (!oldVnode.data.style && !vnode.data.style) {
+  //   return
+  // }
   let cur, name
   const elm = vnode.elm
-  const oldStyle = oldVnode.data.style || {}
-  let style = vnode.data.style || {}
+  let oldStyle = oldData.style || {}
+  let oldStaticStyle = oldData.staticStyle || {}
+  let style = data.style || {}
+  let staticStyle = data.staticStyle || {}
+
+  // merge the style
+  // let oldStyle = extend((oldData.staticStyle || {}), (oldData.style || {}))
+  // let style = extend((data.staticStyle || {}), (data.style || {}))
   // handle array syntax
   if (Array.isArray(style)) {
     style = vnode.data.style = toObject(style)
@@ -31,7 +46,11 @@ function updateStyle (oldVnode, vnode) {
     style = vnode.data.style = extend({}, style)
   }
   // get difference between styles
-  let mutations = diffObject(oldStyle, style)
+  // let mutations = diffObject(oldStyle, style)
+  let staticMuations = diffObject(oldStaticStyle, staticStyle)
+  let styleMutations = diffObject(oldStyle, style)
+  let mutations = extend(staticMuations, styleMutations)
+
   if (!isEmptyObj(mutations)) {
     elm.setStyle(mutations)
   }
@@ -53,6 +72,6 @@ function toObject (arr) {
 }
 
 export default {
-  create: createStyle,
+  create: updateStyle,
   update: updateStyle
 }

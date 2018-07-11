@@ -5195,46 +5195,54 @@ Object.defineProperty(Vue, 'FunctionalRenderContext', {
 
 Vue.version = '2.5.17-beta.0';
 
+var TYPE = {
+  ELEMENT_NODE: 1,
+  TEXT_NODE: 3,
+  COMMENT_NODE: 8,
+  DOCUMENT_NODE: 9
+};
+
 var namespaceMap = {};
 
-function createElement$1 (tagName, vnode) {
+function createElement$1(tagName, vnode) {
   if (tagName === 'text') {
     return document.createTextNode()
   }
   return document.createElement(tagName)
 }
 
-function createElementNS(namespace, tagName, vnode) {
+function createElementNS(namespace, tagName) {
   return document.createElement(namespace + ':' + tagName)
 }
 
-function createTextNode(text, vnode) {
+function createTextNode(text) {
   return document.createTextNode(text)
 }
 
-function createComment(text, vnode) {
+function createComment(text) {
   return document.createComment(text)
 }
 
 function insertBefore (
   node,
   target,
-  beforeMount
+  referenceNode
 ) {
-  node.insertBefore(target, before);
+  node.insertBefore(target, referenceNode);
 }
 
 function removeChild (node, child) {
-  if (child.nodeType === 3) {
-    node.setText('');
-    return
-  }
+  // if (child.nodeType === 3) {
+  //   child.setText('')
+  //   return
+  // }
   node.removeChild(child);
 }
 
 function appendChild (node, child) {
+  var TEXT = TYPE.TEXT_NODE;
   // if child and node are text
-  if (child.nodeType === 3 && node.nodeType === 3) {
+  if (child.nodeType === TEXT && node.nodeType === TEXT) {
     node.setText(child.text);
     // set parentNode to child for update
     child.parentNode = node;
@@ -5802,7 +5810,7 @@ function createPatchFunction (backend) {
         if (isUndef(oldKeyToIdx)) { oldKeyToIdx = createKeyToOldIdx(oldCh, oldStartIdx, oldEndIdx); }
         idxInOld = isDef(newStartVnode.key)
           ? oldKeyToIdx[newStartVnode.key]
-          : findIdxInOld(newStartVnode, oldCh, oldStartIdx/ldEndIdx);
+          : findIdxInOld(newStartVnode, oldCh, oldStartIdx, oldEndIdx);
         if (isUndef(idxInOld)) { // New element
           createElm(newStartVnode, insertedVnodeQueue, parentElm, oldStartVnode.elm, false, newCh, newStartIdx);
         } else {
@@ -6377,7 +6385,7 @@ function updateAttrs (oldVnode, vnode) {
   // get difference between attributes
   mutations = diffObject(oldAttrs, attrs);
   if (!isEmptyObj(mutations)) {
-    elm.setAttrs(mutations, true);
+    elm.setAttrs(mutations);
   }
   // for (const key in mutations) {
   //   elm.setAttrs(mutations, true)
@@ -6669,23 +6677,29 @@ var events = {
   update: updateDOMListeners
 }
 
-function createStyle (oldVnode, vnode) {
-  if (!vnode.data.staticStyle) {
-    updateStyle(oldVnode, vnode);
-    return
-  }
-  var elm = vnode.elm;
-  elm.setStyle(vnode.data.staticStyle);
-  return updateStyle(oldVnode, vnode)
-}
-
 function updateStyle (oldVnode, vnode) {
-  if (!oldVnode.data.style && !vnode.data.style) {
+
+  var data = vnode.data;
+  var oldData = oldVnode.data;
+
+  if (isUndef(data.staticStyle) && isUndef(data.style) &&
+    isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  ) {
     return
   }
+
+  // if (!oldVnode.data.style && !vnode.data.style) {
+  //   return
+  // }
   var elm = vnode.elm;
-  var oldStyle = oldVnode.data.style || {};
-  var style = vnode.data.style || {};
+  var oldStyle = oldData.style || {};
+  var oldStaticStyle = oldData.staticStyle || {};
+  var style = data.style || {};
+  var staticStyle = data.staticStyle || {};
+
+  // merge the style
+  // let oldStyle = extend((oldData.staticStyle || {}), (oldData.style || {}))
+  // let style = extend((data.staticStyle || {}), (data.style || {}))
   // handle array syntax
   if (Array.isArray(style)) {
     style = vnode.data.style = toObject$1(style);
@@ -6696,7 +6710,11 @@ function updateStyle (oldVnode, vnode) {
     style = vnode.data.style = extend({}, style);
   }
   // get difference between styles
-  var mutations = diffObject(oldStyle, style);
+  // let mutations = diffObject(oldStyle, style)
+  var staticMuations = diffObject(oldStaticStyle, staticStyle);
+  var styleMutations = diffObject(oldStyle, style);
+  var mutations = extend(staticMuations, styleMutations);
+
   if (!isEmptyObj(mutations)) {
     elm.setStyle(mutations);
   }
@@ -6718,7 +6736,7 @@ function toObject$1 (arr) {
 }
 
 var style = {
-  create: createStyle,
+  create: updateStyle,
   update: updateStyle
 }
 

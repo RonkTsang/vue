@@ -34,7 +34,7 @@ const violaFactoryPlugin = {
 }
 
 const violaEntryPlugin = {
-  intro() {
+  intro () {
     return `import VueScopeUp from './scopedVue'`
   }
 }
@@ -180,6 +180,14 @@ const builds = {
     dest: resolve('packages/weex-template-compiler/build.js'),
     format: 'cjs',
     external: Object.keys(require('../packages/weex-template-compiler/package.json').dependencies)
+  },
+  // Weex compiler (CommonJS). Used by Weex's Webpack loader.
+  'viola-compiler': {
+    viola: true,
+    entry: resolve('viola/entry-compiler.js'),
+    dest: resolve('packages/viola-template-compiler/build.js'),
+    format: 'cjs',
+    external: Object.keys(require('../packages/viola-template-compiler/package.json').dependencies)
   },
   // viola vue scoped (es6).
   'viola-scoped': {

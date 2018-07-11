@@ -1,45 +1,53 @@
 import TextNode from './text-node'
 
+const TYPE = {
+  ELEMENT_NODE: 1,
+  TEXT_NODE: 3,
+  COMMENT_NODE: 8,
+  DOCUMENT_NODE: 9
+}
+
 export const namespaceMap = {}
 
-export function createElement (tagName, vnode) {
+export function createElement(tagName, vnode) {
   if (tagName === 'text') {
     return document.createTextNode()
   }
   return document.createElement(tagName)
 }
 
-export function createElementNS(namespace, tagName, vnode) {
+export function createElementNS(namespace, tagName) {
   return document.createElement(namespace + ':' + tagName)
 }
 
-export function createTextNode(text, vnode) {
+export function createTextNode(text) {
   return document.createTextNode(text)
 }
 
-export function createComment(text, vnode) {
+export function createComment(text) {
   return document.createComment(text)
 }
 
 export function insertBefore (
   node,
   target,
-  beforeMount
+  referenceNode
 ) {
-  node.insertBefore(target, before)
+  node.insertBefore(target, referenceNode)
 }
 
 export function removeChild (node, child) {
-  if (child.nodeType === 3) {
-    node.setText('')
-    return
-  }
+  // if (child.nodeType === 3) {
+  //   child.setText('')
+  //   return
+  // }
   node.removeChild(child)
 }
 
 export function appendChild (node, child) {
+  let TEXT = TYPE.TEXT_NODE
   // if child and node are text
-  if (child.nodeType === 3 && node.nodeType === 3) {
+  if (child.nodeType === TEXT && node.nodeType === TEXT) {
     node.setText(child.text)
     // set parentNode to child for update
     child.parentNode = node

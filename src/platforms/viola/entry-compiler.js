@@ -1,1 +1,2 @@
-export { compile } from 'weex/compiler/index'
+export { parseComponent } from 'sfc/parser'
+export { compile, compileToFunctions } from './compiler/index'
