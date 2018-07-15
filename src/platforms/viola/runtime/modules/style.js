@@ -6,8 +6,12 @@ const normalize = cached(camelize)
 function createStyle (oldVnode, vnode) {
   const elm = vnode.elm,
     staticStyle = vnode.data.staticStyle
-  // if we got the static style
-  staticStyle && elm.setStyle(staticStyle)
+    if (staticStyle) {
+      // if we got the static style, set to elm, as the STATIC style, it shouldn't be changed
+    elm.staticStyle = staticStyle
+    // let the staticStyle be the basic style of elm
+    elm.setStyle(staticStyle)
+  }
   // default that the dynamic style cover the static
   return updateStyle(oldVnode, vnode)
 }
@@ -17,21 +21,22 @@ function updateStyle (oldVnode, vnode) {
   const data = vnode.data
   const oldData = oldVnode.data
 
-  if (isUndef(data.staticStyle) && isUndef(data.style) &&
-    isUndef(oldData.staticStyle) && isUndef(oldData.style)
-  ) {
+  // if (isUndef(data.staticStyle) && isUndef(data.style) &&
+  //   isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  // ) {
+  //   return
+  // }
+  if (isUndef(data.style) && isUndef(oldData.style)) {
     return
   }
 
-  // if (!oldVnode.data.style && !vnode.data.style) {
-  //   return
-  // }
   let cur, name
-  const elm = vnode.elm
-  let oldStyle = oldData.style || {}
-  let oldStaticStyle = oldData.staticStyle || {}
-  let style = data.style || {}
-  let staticStyle = data.staticStyle || {}
+  const elm = vnode.elm,
+    classStyle = elm.classStyle,
+    staticStyle = elm.staticStyle
+
+  let oldStyle = oldData.style || {},
+    style = data.style || {}
 
   // merge the style
   // let oldStyle = extend((oldData.staticStyle || {}), (oldData.style || {}))
@@ -47,12 +52,16 @@ function updateStyle (oldVnode, vnode) {
   }
   // get difference between styles
   // let mutations = diffObject(oldStyle, style)
-  let staticMuations = diffObject(oldStaticStyle, staticStyle)
-  let styleMutations = diffObject(oldStyle, style)
-  let mutations = extend(staticMuations, styleMutations)
+  // let staticMuations = diffObject(oldStaticStyle, staticStyle)  // if we need to diff this ??
+  let styleMutations = diffObject(oldStyle, style, (key) => {
+    // downgrade to static or class
+    return staticStyle[key] || classStyle[key] || ''
+  })
+  // dynamic style has a higher priority
+  // let mutations = extend(staticMuations, styleMutations)
 
-  if (!isEmptyObj(mutations)) {
-    elm.setStyle(mutations)
+  if (!isEmptyObj(styleMutations)) {
+    elm.setStyle(styleMutations)
   }
 
   // merge style
@@ -72,6 +81,6 @@ function toObject (arr) {
 }
 
 export default {
-  create: updateStyle,
+  create: createStyle,
   update: updateStyle
 }

@@ -1,10 +1,8 @@
-/* @flow */
-
 import { cached, camelize } from 'shared/util'
 
 const normalize = cached(camelize)
 
-function normalizeKeyName (str: string): string {
+function normalizeKeyName (str) {
   if (str.match(/^v\-/)) {
     return str.replace(/(v-[a-z\-]+\:)([a-z\-]+)$/i, ($, directive, prop) => {
       return directive + normalize(prop)
@@ -13,7 +11,7 @@ function normalizeKeyName (str: string): string {
   return normalize(str)
 }
 
-function transformNode (el: ASTElement, options: CompilerOptions) {
+function transformNode (el, options) {
   if (Array.isArray(el.attrsList)) {
     el.attrsList.forEach(attr => {
       if (attr.name && attr.name.match(/\-/)) {
