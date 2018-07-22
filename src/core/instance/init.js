@@ -37,6 +37,8 @@ export function initMixin (Vue: Class<Component>) {
       // 当前这个Vue实例是组件，执行initInternalComponent方法。
       // 该方法主要就是为vm.$options添加一些属性
       initInternalComponent(vm, options)
+      // install page hook
+      if (__VIOLA__) Vue.$installPageHook(vm)
     } else {
       // 当前Vue实例不是组件。
       // 实例化Vue对象时，调用 mergeOptions 方法。

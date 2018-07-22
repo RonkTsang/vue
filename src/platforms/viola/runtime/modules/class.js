@@ -139,9 +139,21 @@ function genClass (vnode) {
  */
 function getDyncClass (vnode) {
   let cls = vnode.data.class
-  return (cls && cls.length)
-          ? (Array.isArray(cls) ? cls : cls.split(' '))
-          : []
+
+  if (!cls) return []
+
+  if (Array.isArray(cls)) {
+    return cls
+  } else if (typeof cls === 'string') {
+    return cls.length ? cls.split(' ') : []
+  } else {
+    let res = []
+    for (const className in cls) {
+      cls[className] && res.push(className)
+    }
+    return res
+  }
+  return []
 }
 
 /**
@@ -161,11 +173,13 @@ function diffStyle(cur, { rm, add }, el, vnode) {
     mutation = {}                   // patch change for native
 
   if (cur.length === 0) {                             // clear all
+    let staStyle
     for (const key in classStyle) {
+      staStyle = staticCls[key]
       // downgrade to static class
-      res[key] = staticCls[key] || ''
+      res[key] = staStyle || ''
       // if there is no key in inline style, mutate to static class or blank
-      inlineStyle[key] || (mutation[key] = staticCls[key] || '')
+      inlineStyle[key] || (staStyle === classStyle[key]) || (mutation[key] = staStyle || '')
     }
   } else if (rm.length === 0 && add.length !== 0) {   // only add
     // note: 引用类型噢，注意！！

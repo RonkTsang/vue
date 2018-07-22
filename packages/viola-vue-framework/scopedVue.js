@@ -4667,6 +4667,8 @@ function initMixin (Vue) {
       // 当前这个Vue实例是组件，执行initInternalComponent方法。
       // 该方法主要就是为vm.$options添加一些属性
       initInternalComponent(vm, options);
+      // install page hook
+      { Vue.$installPageHook(vm); }
     } else {
       // 当前Vue实例不是组件。
       // 实例化Vue对象时，调用 mergeOptions 方法。
@@ -6428,10 +6430,6 @@ var attrs = {
   update: updateAttrs
 }
 
-/*
-  In the progress of createClass, we store the static class,
-  for the reason is that the static class shounld be const
-*/
 function createClass (oldVnode, vnode) {
   var el = vnode.elm;
   // static class
@@ -6505,14 +6503,26 @@ function updateClass (oldVnode, vnode) {
 }
 
 /**
- * get the dynamic style from vnode
+ * 获得 class 字符串
  * @param {VNode} vnode vnode
  */
 function getDyncClass (vnode) {
   var cls = vnode.data.class;
-  return (cls && cls.length)
-          ? (Array.isArray(cls) ? cls : cls.split(' '))
-          : []
+
+  if (!cls) { return [] }
+
+  if (Array.isArray(cls)) {
+    return cls
+  } else if (typeof cls === 'string') {
+    return cls.length ? cls.split(' ') : []
+  } else {
+    var res = [];
+    for (var className in cls) {
+      cls[className] && res.push(className);
+    }
+    return res
+  }
+  return []
 }
 
 /**
@@ -6535,11 +6545,13 @@ function diffStyle(cur, ref, el, vnode) {
     mutation = {};                   // patch change for native
 
   if (cur.length === 0) {                             // clear all
+    var staStyle;
     for (var key in classStyle) {
+      staStyle = staticCls[key];
       // downgrade to static class
-      res[key] = staticCls[key] || '';
+      res[key] = staStyle || '';
       // if there is no key in inline style, mutate to static class or blank
-      inlineStyle[key] || (mutation[key] = staticCls[key] || '');
+      inlineStyle[key] || (staStyle === classStyle[key]) || (mutation[key] = staStyle || '');
     }
   } else if (rm.length === 0 && add.length !== 0) {   // only add
     // note: 引用类型噢，注意！！
@@ -6803,432 +6815,70 @@ var patch = createPatchFunction({
 var platformDirectives = {
 }
 
-/*  */
-
-function getVNodeType (vnode) {
-  if (!vnode.tag) {
-    return ''
-  }
-  return vnode.tag.replace(/vue\-component\-(\d+\-)?/, '')
-}
-
-function isSimpleSpan (vnode) {
-  return vnode.children &&
-    vnode.children.length === 1 &&
-    !vnode.children[0].tag
-}
-
-function parseStyle (vnode) {
-  if (!vnode || !vnode.data) {
-    return
-  }
-  var ref = vnode.data;
-  var staticStyle = ref.staticStyle;
-  var staticClass = ref.staticClass;
-  if (vnode.data.style || vnode.data.class || staticStyle || staticClass) {
-    var styles = Object.assign({}, staticStyle, vnode.data.style);
-    var cssMap = vnode.context.$options.style || {};
-    var classList = [].concat(staticClass, vnode.data.class);
-    classList.forEach(function (name) {
-      if (name && cssMap[name]) {
-        Object.assign(styles, cssMap[name]);
-      }
-    });
-    return styles
-  }
-}
-
-function convertVNodeChildren (children) {
-  if (!children.length) {
-    return
-  }
-
-  return children.map(function (vnode) {
-    var type = getVNodeType(vnode);
-    var props = { type: type };
-
-    // convert raw text node
-    if (!type) {
-      props.type = 'span';
-      props.attr = {
-        value: (vnode.text || '').trim()
-      };
-    } else {
-      props.style = parseStyle(vnode);
-      if (vnode.data) {
-        props.attr = vnode.data.attrs;
-        if (vnode.data.on) {
-          props.events = vnode.data.on;
-        }
-      }
-      if (type === 'span' && isSimpleSpan(vnode)) {
-        props.attr = props.attr || {};
-        props.attr.value = vnode.children[0].text.trim();
-        return props
-      }
-    }
-
-    if (vnode.children && vnode.children.length) {
-      props.children = convertVNodeChildren(vnode.children);
-    }
-
-    return props
-  })
-}
-
-var Richtext = {
-  name: 'richtext',
-  render: function render (h) {
-    return h('weex:richtext', {
-      on: this._events,
-      attrs: {
-        value: convertVNodeChildren(this.$options._renderChildren || [])
-      }
-    })
-  }
-}
-
-/*  */
-
-// Provides transition support for a single element/component.
-// supports transition mode (out-in / in-out)
-
-var transitionProps = {
-  name: String,
-  appear: Boolean,
-  css: Boolean,
-  mode: String,
+var batchProps = {
   type: String,
-  enterClass: String,
-  leaveClass: String,
-  enterToClass: String,
-  leaveToClass: String,
-  enterActiveClass: String,
-  leaveActiveClass: String,
-  appearClass: String,
-  appearActiveClass: String,
-  appearToClass: String,
-  duration: [Number, String, Object]
+  count: Number
 };
 
-// in case the child is also an abstract component, e.g. <keep-alive>
-// we want to recursively retrieve the real component to be rendered
-function getRealChild (vnode) {
-  var compOptions = vnode && vnode.componentOptions;
-  if (compOptions && compOptions.Ctor.options.abstract) {
-    return getRealChild(getFirstComponentChild(compOptions.children))
-  } else {
-    return vnode
-  }
-}
+var TYPE$1 = {
+  TREE: 'tree',
+  STAGE: 'stage'
+};
 
-function extractTransitionData (comp) {
-  var data = {};
-  var options = comp.$options;
-  // props
-  for (var key in options.propsData) {
-    data[key] = comp[key];
-  }
-  // events.
-  // extract listeners and pass them directly to the transition methods
-  var listeners = options._parentListeners;
-  for (var key$1 in listeners) {
-    data[camelize(key$1)] = listeners[key$1];
-  }
-  return data
-}
-
-function placeholder (h, rawChild) {
-  if (/\d-keep-alive$/.test(rawChild.tag)) {
-    return h('keep-alive', {
-      props: rawChild.componentOptions.propsData
-    })
-  }
-}
-
-function hasParentTransition (vnode) {
-  while ((vnode = vnode.parent)) {
-    if (vnode.data.transition) {
-      return true
-    }
-  }
-}
-
-function isSameChild (child, oldChild) {
-  return oldChild.key === child.key && oldChild.tag === child.tag
-}
-
-var Transition = {
-  name: 'transition',
-  props: transitionProps,
+var batch = {
+  name: 'batch',
+  props: batchProps,
   abstract: true,
-
-  render: function render (h) {
-    var this$1 = this;
-
-    var children = this.$slots.default;
-    if (!children) {
-      return
-    }
-
-    // filter out text nodes (possible whitespaces)
-    children = children.filter(function (c) { return c.tag || isAsyncPlaceholder(c); });
-    /* istanbul ignore if */
-    if (!children.length) {
-      return
-    }
-
-    // warn multiple elements
-    if (process.env.NODE_ENV !== 'production' && children.length > 1) {
-      warn(
-        '<transition> can only be used on a single element. Use ' +
-        '<transition-group> for lists.',
-        this.$parent
-      );
-    }
-
-    var mode = this.mode;
-
-    // warn invalid mode
-    if (process.env.NODE_ENV !== 'production' &&
-      mode && mode !== 'in-out' && mode !== 'out-in'
-    ) {
-      warn(
-        'invalid <transition> mode: ' + mode,
-        this.$parent
-      );
-    }
-
-    var rawChild = children[0];
-
-    // if this is a component root node and the component's
-    // parent container node also has transition, skip.
-    if (hasParentTransition(this.$vnode)) {
-      return rawChild
-    }
-
-    // apply transition data to child
-    // use getRealChild() to ignore abstract components e.g. keep-alive
-    var child = getRealChild(rawChild);
-    /* istanbul ignore if */
-    if (!child) {
-      return rawChild
-    }
-
-    if (this._leaving) {
-      return placeholder(h, rawChild)
-    }
-
-    // ensure a key that is unique to the vnode type and to this transition
-    // component instance. This key will be used to remove pending leaving nodes
-    // during entering.
-    var id = "__transition-" + (this._uid) + "-";
-    child.key = child.key == null
-      ? child.isComment
-        ? id + 'comment'
-        : id + child.tag
-      : isPrimitive(child.key)
-        ? (String(child.key).indexOf(id) === 0 ? child.key : id + child.key)
-        : child.key;
-
-    var data = (child.data || (child.data = {})).transition = extractTransitionData(this);
-    var oldRawChild = this._vnode;
-    var oldChild = getRealChild(oldRawChild);
-
-    // mark v-show
-    // so that the transition module can hand over the control to the directive
-    if (child.data.directives && child.data.directives.some(function (d) { return d.name === 'show'; })) {
-      child.data.show = true;
-    }
-
-    if (
-      oldChild &&
-      oldChild.data &&
-      !isSameChild(child, oldChild) &&
-      !isAsyncPlaceholder(oldChild) &&
-      // #6687 component root is a comment node
-      !(oldChild.componentInstance && oldChild.componentInstance._vnode.isComment)
-    ) {
-      // replace old child transition data with fresh one
-      // important for dynamic transitions!
-      var oldData = oldChild.data.transition = extend({}, data);
-      // handle transition mode
-      if (mode === 'out-in') {
-        // return placeholder node and queue update when leave finishes
-        this._leaving = true;
-        mergeVNodeHook(oldData, 'afterLeave', function () {
-          this$1._leaving = false;
-          this$1.$forceUpdate();
-        });
-        return placeholder(h, rawChild)
-      } else if (mode === 'in-out') {
-        if (isAsyncPlaceholder(child)) {
-          return oldRawChild
-        }
-        var delayedLeave;
-        var performLeave = function () { delayedLeave(); };
-        mergeVNodeHook(data, 'afterEnter', performLeave);
-        mergeVNodeHook(data, 'enterCancelled', performLeave);
-        mergeVNodeHook(oldData, 'delayLeave', function (leave) { delayedLeave = leave; });
-      }
-    }
-
-    return rawChild
-  }
-}
-
-// reuse same transition component logic from web
-
-var props = extend({
-  tag: String,
-  moveClass: String
-}, transitionProps);
-
-delete props.mode;
-
-var TransitionGroup = {
-  props: props,
-
-  created: function created () {
-    var dom = this.$requireWeexModule('dom');
-    this.getPosition = function (el) { return new Promise(function (resolve, reject) {
-      dom.getComponentRect(el.ref, function (res) {
-        if (!res.result) {
-          reject(new Error(("failed to get rect for element: " + (el.tag))));
-        } else {
-          resolve(res.size);
-        }
-      });
-    }); };
-
-    var animation = this.$requireWeexModule('animation');
-    this.animate = function (el, options) { return new Promise(function (resolve) {
-      animation.transition(el.ref, options, resolve);
-    }); };
+  render: function render () {
+    return this.$slots.default[0]
   },
-
-  render: function render (h) {
-    var tag = this.tag || this.$vnode.data.tag || 'span';
-    var map = Object.create(null);
-    var prevChildren = this.prevChildren = this.children;
-    var rawChildren = this.$slots.default || [];
-    var children = this.children = [];
-    var transitionData = extractTransitionData(this);
-
-    for (var i = 0; i < rawChildren.length; i++) {
-      var c = rawChildren[i];
-      if (c.tag) {
-        if (c.key != null && String(c.key).indexOf('__vlist') !== 0) {
-          children.push(c);
-          map[c.key] = c
-          ;(c.data || (c.data = {})).transition = transitionData;
-        } else if (process.env.NODE_ENV !== 'production') {
-          var opts = c.componentOptions;
-          var name = opts
-            ? (opts.Ctor.options.name || opts.tag)
-            : c.tag;
-          warn(("<transition-group> children must be keyed: <" + name + ">"));
-        }
-      }
-    }
-
-    if (prevChildren) {
-      var kept = [];
-      var removed = [];
-      prevChildren.forEach(function (c) {
-        c.data.transition = transitionData;
-
-        // TODO: record before patch positions
-
-        if (map[c.key]) {
-          kept.push(c);
-        } else {
-          removed.push(c);
-        }
-      });
-      this.kept = h(tag, null, kept);
-      this.removed = removed;
-    }
-
-    return h(tag, null, children)
-  },
-
   beforeUpdate: function beforeUpdate () {
-    // force removing pass
-    this.__patch__(
-      this._vnode,
-      this.kept,
-      false, // hydrating
-      true // removeOnly (!important, avoids unnecessary moves)
-    );
-    this._vnode = this.kept;
-  },
+    console.log('======= beforeUpdate =======');
 
+    if (this.$tasker) {
+      var type = this.type || (this.type = 'stage');
+      console.log('update type: ', type);
+      switch (type) {
+        case TYPE$1.TREE:
+          this.$tasker.close();
+          break
+        case TYPE$1.STAGE:
+          this.$tasker.store(this.count);
+          break
+      }
+    }
+
+    console.log('======= beforeUpdate end =======');
+  },
   updated: function updated () {
-    var children = this.prevChildren;
-    var moveClass = this.moveClass || ((this.name || 'v') + '-move');
-    var moveData = children.length && this.getMoveData(children[0].context, moveClass);
-    if (!moveData) {
-      return
+    console.log('======= updated =======');
+    var type = this.type;
+
+    switch (type) {
+      case TYPE$1.TREE:
+        var treeTask = [{
+          module: 'dom',
+          method: 'updateElement',
+          args: [
+            this.$el.ref,
+            this.$el.toJSON()
+          ]
+        }];
+        this.$tasker.open(treeTask);
+        break
+      case TYPE$1.STAGE:
+        this.$tasker.open();
+        break
     }
-
-    // TODO: finish implementing move animations once
-    // we have access to sync getComponentRect()
-
-    // children.forEach(callPendingCbs)
-
-    // Promise.all(children.map(c => {
-    //   const oldPos = c.data.pos
-    //   const newPos = c.data.newPos
-    //   const dx = oldPos.left - newPos.left
-    //   const dy = oldPos.top - newPos.top
-    //   if (dx || dy) {
-    //     c.data.moved = true
-    //     return this.animate(c.elm, {
-    //       styles: {
-    //         transform: `translate(${dx}px,${dy}px)`
-    //       }
-    //     })
-    //   }
-    // })).then(() => {
-    //   children.forEach(c => {
-    //     if (c.data.moved) {
-    //       this.animate(c.elm, {
-    //         styles: {
-    //           transform: ''
-    //         },
-    //         duration: moveData.duration || 0,
-    //         delay: moveData.delay || 0,
-    //         timingFunction: moveData.timingFunction || 'linear'
-    //       })
-    //     }
-    //   })
-    // })
-  },
-
-  methods: {
-    getMoveData: function getMoveData (context, moveClass) {
-      var stylesheet = context.$options.style || {};
-      return stylesheet['@TRANSITION'] && stylesheet['@TRANSITION'][moveClass]
-    }
+    console.log('======= updated end =======');
   }
 }
 
-// function callPendingCbs (c) {
-//   /* istanbul ignore if */
-//   if (c.elm._moveCb) {
-//     c.elm._moveCb()
-//   }
-//   /* istanbul ignore if */
-//   if (c.elm._enterCb) {
-//     c.elm._enterCb()
-//   }
-// }
-
+// import Richtext from './richtext'
+// import Transition from './transition'
+// import TransitionGroup from './transition-group'
 var platformComponents = {
-  Richtext: Richtext,
-  Transition: Transition,
-  TransitionGroup: TransitionGroup
+  batch: batch
 }
 
 /*  */
@@ -7255,7 +6905,7 @@ var canBeLeftOpenTag = makeMap(
 );
 
 var isRuntimeComponent = makeMap(
-  'richtext,transition,transition-group',
+  'batch,richtext,transition,transition-group',
   true
 );
 
