@@ -50,6 +50,7 @@ let mutationCache = {
   for the reason is that the static class shounld be const
 */
 function createClass (oldVnode, vnode) {
+  const isComponent = /^vue\-component\-/.test(vnode.tag)
   const el = vnode.elm
   // static class
   // data.staticClass is String, if it equal to '' or undefined, default transform to a []
@@ -62,8 +63,8 @@ function createClass (oldVnode, vnode) {
     sStyle = getStyle(staticClass, vnode)
     copy = extend({}, sStyle)
     // store style from static class
-    el.staticClassStyle = sStyle
-    el.staticClassList = staticClass
+    // el.staticClassStyle = isComponent ? extend(el.staticClassStyle, sStyle) : sStyle
+    // el.staticClassList = staticClass
   }
 
   // dynamic class
@@ -71,11 +72,24 @@ function createClass (oldVnode, vnode) {
   // get dynamic style
   let res = cls.length ? getStyle(cls, vnode) : {}
   // merge style and set style
-  el.setClassStyle({
-    classStyle: extend(copy, res)
-  }, true)
-  // set class list
-  el.setClass(cls, true)
+  if (isComponent) {
+    // if vnode is a component, to merge origin class and origin style from el
+    extend(el.staticClassStyle, sStyle)
+    el.staticClassList = el.staticClassList.concat(staticClass)
+    el.setClassStyle({
+      classStyle: extend(copy, res)
+    }, false)
+    el.setClass(cls, false)
+  } else {
+    // if vnode isn't a component, init class and style
+    el.staticClassStyle = sStyle
+    el.staticClassList = staticClass
+    el.setClassStyle({
+      classStyle: extend(copy, res)
+    }, true)
+    // set class list
+    el.setClass(cls, true)
+  }
 }
 
 function updateClass (oldVnode, vnode) {
@@ -99,7 +113,6 @@ function updateClass (oldVnode, vnode) {
   // didn't need to update
   if (clsStr === oldClsStr) return
 
-  // 'a b c' => [a, b, c]
   const classList = cls
 
   // classMutation contain { add: [], rm: [] }
