@@ -1,7 +1,5 @@
 import VueScopeUp from './scopedVue'
 
-// import VueScopeUp from './scopedVue'
-
 function intoCTX(ctx) {
   var taker = {};
   VueScopeUp(taker, ctx.document);
@@ -11,28 +9,28 @@ function intoCTX(ctx) {
 
 function violaConnect(Vue, ctx) {
   // take the violaInstance
-  var viola = ctx.viola,
-    tasker = viola.tasker;
-  Vue.prototype.$tasker = {
-    store: function store (count) {
-      return tasker.store(count)
-    },
-    open: function open (task) {
-      return tasker.open(task)
-    },
-    close: function close () {
-      return tasker.close()
-    }
-  };
+  var viola = ctx.viola;
+  //   tasker = viola.tasker
+  // Vue.prototype.$tasker = {
+  //   store (count) {
+  //     return tasker.store(count)
+  //   },
+  //   open (task) {
+  //     return tasker.open(task)
+  //   },
+  //   close () {
+  //     return tasker.close()
+  //   }
+  // }
 
   // hook for status changing from page
   var pageHook = {
     // registerList: [],
     pageAppear: [],
     pageDisappear: [],
-    pageDestory: []
+    pageDestroy: []
   };
-
+  //
   Vue.$installPageHook = function (vm) {
     var $options = vm.$options;
     if ($options) {
@@ -48,8 +46,8 @@ function violaConnect(Vue, ctx) {
       }
     }
   };
-
-  viola.on('refresh', function (data) {
+  // page update
+  viola.on('update', function (data) {
     var cbList, point;
     if (data['viewDidAppear']) {
       cbList = pageHook.pageAppear;
@@ -68,6 +66,22 @@ function violaConnect(Vue, ctx) {
         }
         return newList
       }, []);
+    }
+  });
+  // destroy
+  viola.on('destroy', function (data) {
+    viola.app && viola.app.$destroy();
+    viola = null;
+    Vue.$installPageHook = null;
+    Vue = null;
+    ctx = null;
+  });
+  // get the root vm
+  Vue.mixin({
+    beforeCreate: function beforeCreate() {
+      if (this.$options.el) {
+        viola.app = this;
+      }
     }
   });
 }

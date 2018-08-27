@@ -5869,7 +5869,7 @@ function createPatchFunction (backend) {
       return
     }
     if (process.env.NODE_ENV !== 'production') {
-      console.log('start patch Node', oldVnode, vnode);
+      // console.log('start patch Node', oldVnode, vnode)
     }
     var elm = vnode.elm = oldVnode.elm;
 
@@ -6431,6 +6431,7 @@ var attrs = {
 }
 
 function createClass (oldVnode, vnode) {
+  var isComponent = /^vue\-component\-/.test(vnode.tag);
   var el = vnode.elm;
   // static class
   // data.staticClass is String, if it equal to '' or undefined, default transform to a []
@@ -6443,8 +6444,8 @@ function createClass (oldVnode, vnode) {
     sStyle = getStyle(staticClass, vnode);
     copy = extend({}, sStyle);
     // store style from static class
-    el.staticClassStyle = sStyle;
-    el.staticClassList = staticClass;
+    // el.staticClassStyle = isComponent ? extend(el.staticClassStyle, sStyle) : sStyle
+    // el.staticClassList = staticClass
   }
 
   // dynamic class
@@ -6452,11 +6453,24 @@ function createClass (oldVnode, vnode) {
   // get dynamic style
   var res = cls.length ? getStyle(cls, vnode) : {};
   // merge style and set style
-  el.setClassStyle({
-    classStyle: extend(copy, res)
-  }, true);
-  // set class list
-  el.setClass(cls, true);
+  if (isComponent) {
+    // if vnode is a component, to merge origin class and origin style from el
+    extend(el.staticClassStyle, sStyle);
+    el.staticClassList = el.staticClassList.concat(staticClass);
+    el.setClassStyle({
+      classStyle: extend(copy, res)
+    }, false);
+    el.setClass(cls, false);
+  } else {
+    // if vnode isn't a component, init class and style
+    el.staticClassStyle = sStyle;
+    el.staticClassList = staticClass;
+    el.setClassStyle({
+      classStyle: extend(copy, res)
+    }, true);
+    // set class list
+    el.setClass(cls, true);
+  }
 }
 
 function updateClass (oldVnode, vnode) {
@@ -6480,7 +6494,6 @@ function updateClass (oldVnode, vnode) {
   // didn't need to update
   if (clsStr === oldClsStr) { return }
 
-  // 'a b c' => [a, b, c]
   var classList = cls;
 
   // classMutation contain { add: [], rm: [] }
@@ -6815,70 +6828,164 @@ var patch = createPatchFunction({
 var platformDirectives = {
 }
 
-var batchProps = {
-  type: String,
-  count: Number
-};
+function genClsStyle(vnode) {
+  var staticCls = vnode.data.staticClass;
+  staticCls = staticCls ? staticCls.split(' ') : [];
+  var dync = getDyncClass(vnode);
+  return getStyle(staticCls.concat(dync), vnode)
+}
 
-var TYPE$1 = {
-  TREE: 'tree',
-  STAGE: 'stage'
-};
+function genInlineStyle (vnode) {
+  var staticStyle = vnode.data.staticStyle || {};
+  var dyStyle = vnode.data.style || {};
+  return Object.assign({}, staticStyle, dyStyle)
+}
 
-var batch = {
-  name: 'batch',
-  props: batchProps,
-  abstract: true,
-  render: function render () {
-    return this.$slots.default[0]
-  },
-  beforeUpdate: function beforeUpdate () {
-    console.log('======= beforeUpdate =======');
+function getStyle$1 (vnode) {
+  var vdata = vnode.data;
+  if (!vdata) {
+    return null
+  }
 
-    if (this.$tasker) {
-      var type = this.type || (this.type = 'stage');
-      console.log('update type: ', type);
-      switch (type) {
-        case TYPE$1.TREE:
-          this.$tasker.close();
-          break
-        case TYPE$1.STAGE:
-          this.$tasker.store(this.count);
-          break
-      }
+  var inlineStyle = null, clsStyle = null;
+
+  if (vdata.staticStyle || vdata.style) {
+    inlineStyle = genInlineStyle(vnode);
+  }
+
+  if (vdata.staticClass || vdata.class) {
+    clsStyle = genClsStyle(vnode);
+  }
+  if (!clsStyle && !inlineStyle) {
+    return null
+  }
+  return Object.assign({}, clsStyle, inlineStyle)
+}
+
+function collectEvent(vnode, index, value, map) {
+  if (vnode.data && vnode.data.on) {
+    value.events = [];
+    var subEvs = vnode.data.on;
+    for (var ev in subEvs) {
+      !map[ev] && (map[ev] = {});
+      map[ev][index] = subEvs[ev];
+      value.events.push(ev);
     }
-
-    console.log('======= beforeUpdate end =======');
-  },
-  updated: function updated () {
-    console.log('======= updated =======');
-    var type = this.type;
-
-    switch (type) {
-      case TYPE$1.TREE:
-        var treeTask = [{
-          module: 'dom',
-          method: 'updateElement',
-          args: [
-            this.$el.ref,
-            this.$el.toJSON()
-          ]
-        }];
-        this.$tasker.open(treeTask);
-        break
-      case TYPE$1.STAGE:
-        this.$tasker.open();
-        break
-    }
-    console.log('======= updated end =======');
   }
 }
 
-// import Richtext from './richtext'
-// import Transition from './transition'
-// import TransitionGroup from './transition-group'
+function genEvent(cmp) {
+  var m = cmp.$options._eventMap;
+  var loop = function ( ev ) {
+    var originEv = (void 0);
+    if (cmp._events[ev]) {
+      originEv = cmp._events[ev];
+    }
+    cmp._events[ev] = [];
+    cmp._events[ev].push(function handler(e) {
+      if (typeof e.index !== 'undefined') {
+        var index = e.index;
+        delete e.index;
+        var subEvents;
+        var isBubbleToText = true;
+        var originPropagation = e.stopPropagation;
+        if (subEvents = m[ev][index]) {
+          e.stopPropagation = function () {
+            isBubbleToText = false;
+            originPropagation();
+          };
+          subEvents(e);
+        }
+        if (isBubbleToText && originEv) {
+          e.stopPropagation = originPropagation;
+          for (var i = 0; i < originEv.length; i++) {
+            originEv[i](e);
+          }
+        }
+      }
+    });
+  };
+
+  for (var ev in m) loop( ev );
+}
+
+function resolveChildren (richtextCmp) {
+  var children = richtextCmp.$options._renderChildren;
+  if (children && children.length) {
+    /**
+     * eventMap: {
+     *    click: {
+     *      1: fn,
+     *      5: fn
+     *    }
+     * }
+     */
+    richtextCmp.$options._eventMap = Object.create(null);
+    return children.reduce(function (values, vnode, index) {
+      var value = Object.create(null);
+      var type = vnode.tag;
+
+      // check type
+      if (!type && !vnode.isComment && vnode.text) {
+        value.type = 'text';
+        value.value = vnode.text;
+      } else if (type === 'span') {
+        value.type = 'text';
+        value.value = vnode.children[0].text;
+      } else if (type === 'image') {
+        if (vnode.data && vnode.data.attrs) {
+          value.type = type;
+          value.src = vnode.data.attrs.src || '';
+        } else {
+          console.error("<image /> require attribute \"src\"");
+        }
+      }
+
+      // vaild type
+      if (value.type) {
+        // generate style
+        var style = getStyle$1(vnode);
+        style && (value.style = style);
+
+        // collect sub event listener
+        collectEvent(vnode, index, value, richtextCmp.$options._eventMap);
+
+        values.push(value);
+      }
+      return values
+    }, [])
+  } else {
+    return []
+  }
+}
+
+var Richtext = {
+  name: 'rich-text',
+  render: function render (h) {
+
+    var valuesChildren = resolveChildren(this);
+
+    // generate events
+    genEvent(this);
+
+    // var virtualSubTree = h('vTree', this.$options._renderChildren)
+    // if (this.$options.vSubTree) {
+    //   patch(this.$options.vSubTree, virtualSubTree)
+    // }
+
+    // this.$options.vSubTree = virtualSubTree
+
+    return h('text', {
+      on: this._events,
+      attrs: {
+        values: valuesChildren
+      }
+    })
+  }
+}
+
 var platformComponents = {
-  batch: batch
+  richtext: Richtext
 }
 
 /*  */

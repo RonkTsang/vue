@@ -150,7 +150,7 @@ function genClass (vnode) {
  * get the dynamic style from vnode
  * @param {VNode} vnode vnode
  */
-function getDyncClass (vnode) {
+export function getDyncClass (vnode) {
   let cls = vnode.data.class
 
   if (!cls) return []
@@ -239,7 +239,7 @@ function diffStyle(cur, { rm, add }, el, vnode) {
  * @param {Object} inlineStyle [optional] 行内样式
  * @param {Object} classStyle [optional] 类样式
  */
-function getStyle(classList, vnode, copy, inlineStyle, classStyle) {
+export function getStyle(classList, vnode, copy, inlineStyle, classStyle) {
   const stylesheet = vnode.context.$options._stylesheet
   let res = {},
     extendFnc =

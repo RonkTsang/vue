@@ -517,7 +517,7 @@ export function createPatchFunction (backend) {
       return
     }
     if (process.env.NODE_ENV !== 'production') {
-      console.log('start patch Node', oldVnode, vnode)
+      // console.log('start patch Node', oldVnode, vnode)
     }
     const elm = vnode.elm = oldVnode.elm
 

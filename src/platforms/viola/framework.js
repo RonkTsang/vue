@@ -1,4 +1,3 @@
-// import VueScopeUp from './scopedVue'
 
 export function intoCTX(ctx) {
   let taker = {}
@@ -9,28 +8,28 @@ export function intoCTX(ctx) {
 
 function violaConnect(Vue, ctx) {
   // take the violaInstance
-  let viola = ctx.viola,
-    tasker = viola.tasker
-  Vue.prototype.$tasker = {
-    store (count) {
-      return tasker.store(count)
-    },
-    open (task) {
-      return tasker.open(task)
-    },
-    close () {
-      return tasker.close()
-    }
-  }
+  let viola = ctx.viola
+  //   tasker = viola.tasker
+  // Vue.prototype.$tasker = {
+  //   store (count) {
+  //     return tasker.store(count)
+  //   },
+  //   open (task) {
+  //     return tasker.open(task)
+  //   },
+  //   close () {
+  //     return tasker.close()
+  //   }
+  // }
 
   // hook for status changing from page
   let pageHook = {
     // registerList: [],
     pageAppear: [],
     pageDisappear: [],
-    pageDestory: []
+    pageDestroy: []
   }
-
+  //
   Vue.$installPageHook = (vm) => {
     let $options = vm.$options
     if ($options) {
@@ -46,8 +45,8 @@ function violaConnect(Vue, ctx) {
       }
     }
   }
-
-  viola.on('refresh', (data) => {
+  // page update
+  viola.on('update', (data) => {
     let list = pageHook.registerList
     let cbList, point
     if (data['viewDidAppear']) {
@@ -68,10 +67,22 @@ function violaConnect(Vue, ctx) {
       }, [])
     }
   })
-}
-
-function refreshInstance(data) {
-
+  // destroy
+  viola.on('destroy', (data) => {
+    viola.app && viola.app.$destroy()
+    viola = null
+    Vue.$installPageHook = null
+    Vue = null
+    ctx = null
+  })
+  // get the root vm
+  Vue.mixin({
+    beforeCreate() {
+      if (this.$options.el) {
+        viola.app = this
+      }
+    }
+  })
 }
 
 export default {
