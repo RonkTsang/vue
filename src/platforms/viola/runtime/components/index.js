@@ -1,4 +1,4 @@
-import Richtext from './violaText'
+import Richtext from './richText'
 // import Transition from './transition'
 // import TransitionGroup from './transition-group'
 // import batch from './batch'

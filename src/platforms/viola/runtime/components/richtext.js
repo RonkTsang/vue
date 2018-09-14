@@ -1,81 +1,212 @@
-/* @flow */
 
-function getVNodeType (vnode: VNode): string {
-  if (!vnode.tag) {
-    return ''
-  }
-  return vnode.tag.replace(/vue\-component\-(\d+\-)?/, '')
+import {
+  getStyle as getClassStyle,
+  getDyncClass
+} from 'viola/runtime/modules/class'
+
+/**
+ * generate classname style
+ * @param {VNode} vnode
+ */
+function genClsStyle(vnode) {
+  let staticCls = vnode.data.staticClass
+  staticCls = staticCls ? staticCls.split(' ') : []
+  let dync = getDyncClass(vnode)
+  return getClassStyle(staticCls.concat(dync), vnode)
 }
 
-function isSimpleSpan (vnode: VNode): boolean {
-  return vnode.children &&
-    vnode.children.length === 1 &&
-    !vnode.children[0].tag
+/**
+ * generate inline style
+ * @param {VNode} vnode
+ */
+function genInlineStyle (vnode) {
+  const staticStyle = vnode.data.staticStyle || {}
+  const dyStyle = vnode.data.style || {}
+  return Object.assign({}, staticStyle, dyStyle)
 }
 
-function parseStyle (vnode: VNode): Object | void {
-  if (!vnode || !vnode.data) {
-    return
+/**
+ * get style from inlineStyle and classStyle
+ * @param {VNode} vnode
+ */
+function getStyle (vnode) {
+  const vdata = vnode.data
+  if (!vdata) {
+    return null
   }
-  const { staticStyle, staticClass } = vnode.data
-  if (vnode.data.style || vnode.data.class || staticStyle || staticClass) {
-    const styles = Object.assign({}, staticStyle, vnode.data.style)
-    const cssMap = vnode.context.$options.style || {}
-    const classList = [].concat(staticClass, vnode.data.class)
-    classList.forEach(name => {
-      if (name && cssMap[name]) {
-        Object.assign(styles, cssMap[name])
-      }
-    })
-    return styles
+
+  let inlineStyle = null, clsStyle = null
+
+  if (vdata.staticStyle || vdata.style) {
+    inlineStyle = genInlineStyle(vnode)
+  }
+
+  if (vdata.staticClass || vdata.class) {
+    clsStyle = genClsStyle(vnode)
+  }
+  if (!clsStyle && !inlineStyle) {
+    return null
+  }
+  return Object.assign({}, clsStyle, inlineStyle)
+}
+
+/**
+ *
+ * @param {VNode} vnode
+ * @param {Number} index
+ * @param {Object} value
+ * @param {Object} map
+ */
+function collectEvent(vnode, index, value, map) {
+  if (vnode.data && vnode.data.on) {
+    value.events = []
+    const subEvs = vnode.data.on
+    for (const ev in subEvs) {
+      !map[ev] && (map[ev] = {})
+      map[ev][index] = subEvs[ev]
+      value.events.push(ev)
+    }
   }
 }
 
-function convertVNodeChildren (children: Array<VNode>): Array<VNode> | void {
-  if (!children.length) {
-    return
-  }
+/**
+ * generate event for <richtext>
+ *
+ * select sub event by e.index
+ *
+ * @param {Component} cmp v-component
+ */
+function genEvent(cmp) {
+  // all events from this component (contains sub events)
+  let m = cmp.$options._eventMap
+  // loop with event name to generate handler
+  for (const ev in m) {
+    let originEv
+    if (cmp._events[ev]) {
+      originEv = cmp._events[ev]  // originEvent: event listened in <richtext>
+    }
 
-  return children.map(vnode => {
-    const type: string = getVNodeType(vnode)
-    const props: Object = { type }
+    // reset component's _events
+    cmp._events[ev] = []
+    // handle listener to apply subEvents and originEvent
+    cmp._events[ev].push(function handler(e) {
 
-    // convert raw text node
-    if (!type) {
-      props.type = 'span'
-      props.attr = {
-        value: (vnode.text || '').trim()
-      }
-    } else {
-      props.style = parseStyle(vnode)
-      if (vnode.data) {
-        props.attr = vnode.data.attrs
-        if (vnode.data.on) {
-          props.events = vnode.data.on
+      // no validated listener
+      // let hasNoListener = true
+
+      // if there is not e.index, means that user didn't click on text which has listener
+      // vice versa
+      if (typeof e.index !== 'undefined' || e.index === null) {
+        let index = e.index
+        delete e.index
+        let subEvents
+
+        // if need to fire event listened on <richtext>
+        let isBubbleToText = true
+
+        // origin stopPropagation
+        let originPropagation = e.stopPropagation
+
+        // if the index from event has listener
+        if (subEvents = m[ev][index]) {
+          // has event now
+          // hasNoListener = false
+          // reset stopPropagation, stop bubble to <richtext> and parentNode
+          e.stopPropagation = () => {
+            isBubbleToText = false
+            originPropagation()
+          }
+          // fire event
+          subEvents(e)
+        }
+
+        // bubble to <richtext>
+        if (isBubbleToText && originEv) {
+          // hasNoListener = false
+          e.stopPropagation = originPropagation
+          for (let i = 0; i < originEv.length; i++) {
+            originEv[i](e)
+          }
         }
       }
-      if (type === 'span' && isSimpleSpan(vnode)) {
-        props.attr = props.attr || {}
-        props.attr.value = vnode.children[0].text.trim()
-        return props
+
+      // if (hasNoListener) {
+      //   console.log('bubble up')
+      // }
+    })
+  }
+}
+
+function resolveChildren (richtextCmp) {
+  const children = richtextCmp.$options._renderChildren
+  if (children && children.length) {
+    /**
+     * eventMap: {
+     *    click: {
+     *      1: fn,
+     *      5: fn
+     *    }
+     * }
+     */
+    richtextCmp.$options._eventMap = Object.create(null)
+    return children.reduce((values, vnode, index) => {
+      const value = Object.create(null)
+      const type = vnode.tag
+
+      // check type
+      if (!type && !vnode.isComment && vnode.text) {
+        value.type = 'text'
+        value.value = vnode.text
+      } else if (type === 'span') {
+        value.type = 'text'
+        value.value = vnode.children[0].text
+      } else if (type === 'image') {
+        if (vnode.data && vnode.data.attrs) {
+          value.type = type
+          value.src = vnode.data.attrs.src || ''
+        } else {
+          console.error(`<image /> require attribute "src"`)
+        }
       }
-    }
 
-    if (vnode.children && vnode.children.length) {
-      props.children = convertVNodeChildren(vnode.children)
-    }
+      // vaild type
+      if (value.type) {
+        // generate style
+        let style = getStyle(vnode)
+        style && (value.style = style)
 
-    return props
-  })
+        // collect sub event listener
+        collectEvent(vnode, index, value, richtextCmp.$options._eventMap)
+
+        values.push(value)
+      }
+      return values
+    }, [])
+  } else {
+    return []
+  }
 }
 
 export default {
-  name: 'richtext',
-  render (h: Function) {
-    return h('weex:richtext', {
+  name: 'rich-text',
+  render (h) {
+
+    let valuesChildren = resolveChildren(this)
+
+    // generate events
+    genEvent(this)
+
+    // var virtualSubTree = h('vTree', this.$options._renderChildren)
+    // if (this.$options.vSubTree) {
+    //   patch(this.$options.vSubTree, virtualSubTree)
+    // }
+
+    // this.$options.vSubTree = virtualSubTree
+
+    return h('text', {
       on: this._events,
       attrs: {
-        value: convertVNodeChildren(this.$options._renderChildren || [])
+        values: valuesChildren
       }
     })
   }

@@ -6828,6 +6828,10 @@ var patch = createPatchFunction({
 var platformDirectives = {
 }
 
+/**
+ * generate classname style
+ * @param {VNode} vnode
+ */
 function genClsStyle(vnode) {
   var staticCls = vnode.data.staticClass;
   staticCls = staticCls ? staticCls.split(' ') : [];
@@ -6835,12 +6839,20 @@ function genClsStyle(vnode) {
   return getStyle(staticCls.concat(dync), vnode)
 }
 
+/**
+ * generate inline style
+ * @param {VNode} vnode
+ */
 function genInlineStyle (vnode) {
   var staticStyle = vnode.data.staticStyle || {};
   var dyStyle = vnode.data.style || {};
   return Object.assign({}, staticStyle, dyStyle)
 }
 
+/**
+ * get style from inlineStyle and classStyle
+ * @param {VNode} vnode
+ */
 function getStyle$1 (vnode) {
   var vdata = vnode.data;
   if (!vdata) {
@@ -6862,6 +6874,13 @@ function getStyle$1 (vnode) {
   return Object.assign({}, clsStyle, inlineStyle)
 }
 
+/**
+ *
+ * @param {VNode} vnode
+ * @param {Number} index
+ * @param {Object} value
+ * @param {Object} map
+ */
 function collectEvent(vnode, index, value, map) {
   if (vnode.data && vnode.data.on) {
     value.events = [];
@@ -6874,35 +6893,70 @@ function collectEvent(vnode, index, value, map) {
   }
 }
 
+/**
+ * generate event for <richtext>
+ *
+ * select sub event by e.index
+ *
+ * @param {Component} cmp v-component
+ */
 function genEvent(cmp) {
+  // all events from this component (contains sub events)
   var m = cmp.$options._eventMap;
+  // loop with event name to generate handler
   var loop = function ( ev ) {
     var originEv = (void 0);
     if (cmp._events[ev]) {
-      originEv = cmp._events[ev];
+      originEv = cmp._events[ev];  // originEvent: event listened in <richtext>
     }
+
+    // reset component's _events
     cmp._events[ev] = [];
+    // handle listener to apply subEvents and originEvent
     cmp._events[ev].push(function handler(e) {
-      if (typeof e.index !== 'undefined') {
+
+      // no validated listener
+      // let hasNoListener = true
+
+      // if there is not e.index, means that user didn't click on text which has listener
+      // vice versa
+      if (typeof e.index !== 'undefined' || e.index === null) {
         var index = e.index;
         delete e.index;
         var subEvents;
+
+        // if need to fire event listened on <richtext>
         var isBubbleToText = true;
+
+        // origin stopPropagation
         var originPropagation = e.stopPropagation;
+
+        // if the index from event has listener
         if (subEvents = m[ev][index]) {
+          // has event now
+          // hasNoListener = false
+          // reset stopPropagation, stop bubble to <richtext> and parentNode
           e.stopPropagation = function () {
             isBubbleToText = false;
             originPropagation();
           };
+          // fire event
           subEvents(e);
         }
+
+        // bubble to <richtext>
         if (isBubbleToText && originEv) {
+          // hasNoListener = false
           e.stopPropagation = originPropagation;
           for (var i = 0; i < originEv.length; i++) {
             originEv[i](e);
           }
         }
       }
+
+      // if (hasNoListener) {
+      //   console.log('bubble up')
+      // }
     });
   };
 
