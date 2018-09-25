@@ -79,6 +79,8 @@ function collectEvent(vnode, index, value, map) {
 function genEvent(cmp) {
   // all events from this component (contains sub events)
   let m = cmp.$options._eventMap
+
+  let newEvents = Object.create(null)
   // loop with event name to generate handler
   for (const ev in m) {
     let originEv
@@ -86,10 +88,9 @@ function genEvent(cmp) {
       originEv = cmp._events[ev]  // originEvent: event listened in <richtext>
     }
 
-    // reset component's _events
-    cmp._events[ev] = []
+    newEvents[ev] = []
     // handle listener to apply subEvents and originEvent
-    cmp._events[ev].push(function handler(e) {
+    newEvents[ev].push(function handler(e) {
 
       // no validated listener
       // let hasNoListener = true
@@ -129,12 +130,11 @@ function genEvent(cmp) {
           }
         }
       }
-
-      // if (hasNoListener) {
-      //   console.log('bubble up')
-      // }
     })
   }
+
+  // reset component's _events
+  cmp._events = newEvents
 }
 
 function resolveChildren (richtextCmp) {
@@ -187,21 +187,24 @@ function resolveChildren (richtextCmp) {
   }
 }
 
+function isSameVaules(values, oldValues) {
+  // type of values is Array,
+  // transform to string for compare
+  return (JSON.stringify(values) === JSON.stringify(oldValues))
+}
+
 export default {
   name: 'rich-text',
   render (h) {
 
     let valuesChildren = resolveChildren(this)
-
-    // generate events
-    genEvent(this)
-
-    // var virtualSubTree = h('vTree', this.$options._renderChildren)
-    // if (this.$options.vSubTree) {
-    //   patch(this.$options.vSubTree, virtualSubTree)
-    // }
-
-    // this.$options.vSubTree = virtualSubTree
+    if (this._valuesChildren && isSameVaules(valuesChildren, this._valuesChildren)) {
+      valuesChildren = this._valuesChildren
+    } else {
+      this._valuesChildren = valuesChildren
+      // generate events
+      genEvent(this);
+    }
 
     return h('text', {
       on: this._events,
