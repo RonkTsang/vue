@@ -693,9 +693,6 @@ Dep.prototype.notify = function notify () {
   }
 };
 
-// the current target watcher being evaluated.
-// this is globally unique because there could be only one
-// watcher being evaluated at any time.
 Dep.target = null;
 var targetStack = [];
 
@@ -1096,11 +1093,6 @@ function dependArray (value) {
 
 /*  */
 
-/**
- * Option overwriting strategies are functions that handle
- * how to merge a parent option value and a child option
- * value into the final value.
- */
 var strats = config.optionMergeStrategies;
 
 /**
@@ -2161,18 +2153,6 @@ function checkProp (
 
 /*  */
 
-// The template compiler attempts to minimize the need for normalization by
-// statically analyzing the template at compile time.
-//
-// For plain HTML markup, normalization can be completely skipped because the
-// generated render function is guaranteed to return Array<VNode>. There are
-// two cases where extra normalization is needed:
-
-// 1. When the children contains components - because a functional component
-// may return an Array instead of a single root. In this case, just a simple
-// normalization is needed - if any child is an Array, we flatten the whole
-// thing with Array.prototype.concat. It is guaranteed to be only 1-level deep
-// because functional components already normalize their own children.
 function simpleNormalizeChildren (children) {
   for (var i = 0; i < children.length; i++) {
     if (Array.isArray(children[i])) {
@@ -3702,9 +3682,6 @@ function resolveInject (inject, vm) {
 
 /*  */
 
-/**
- * Runtime helper for rendering v-for lists.
- */
 function renderList (
   val,
   render
@@ -3736,9 +3713,6 @@ function renderList (
 
 /*  */
 
-/**
- * Runtime helper for rendering <slot>
- */
 function renderSlot (
   name,
   fallback,
@@ -3785,9 +3759,6 @@ function renderSlot (
 
 /*  */
 
-/**
- * Runtime helper for resolving filters
- */
 function resolveFilter (id) {
   return resolveAsset(this.$options, 'filters', id, true) || identity
 }
@@ -3826,9 +3797,6 @@ function checkKeyCodes (
 
 /*  */
 
-/**
- * Runtime helper for merging v-bind="object" into a VNode's data.
- */
 function bindObjectProps (
   data,
   tag,
@@ -4163,13 +4131,10 @@ function mergeProps (to, from) {
 
 // https://github.com/Hanks10100/weex-native-directive/tree/master/component
 
-// listening on native callback
-
 /*  */
 
 /*  */
 
-// inline hooks to be invoked on component VNodes during patch
 var componentVNodeHooks = {
   init: function init (vnode, hydrating) {
     if (
@@ -5212,7 +5177,6 @@ function initGlobalAPI (Vue) {
   initAssetRegisters(Vue);
 }
 
-// initGlobalAPI 的作用是在 Vue 构造函数上挂载静态属性和方法
 initGlobalAPI(Vue);
 
 Object.defineProperty(Vue.prototype, '$isServer', {
@@ -6466,10 +6430,6 @@ var attrs = {
   update: updateAttrs
 }
 
-/*
-  In the progress of createClass, we store the static class,
-  for the reason is that the static class shounld be const
-*/
 function createClass (oldVnode, vnode) {
   var isComponent = /^vue\-component\-/.test(vnode.tag);
   var el = vnode.elm;
@@ -6556,7 +6516,7 @@ function updateClass (oldVnode, vnode) {
 }
 
 /**
- * get the dynamic style from vnode
+ * 获得 class 字符串
  * @param {VNode} vnode vnode
  */
 function getDyncClass (vnode) {
@@ -6787,18 +6747,19 @@ function updateStyle (oldVnode, vnode) {
   var data = vnode.data;
   var oldData = oldVnode.data;
 
-  // if (isUndef(data.staticStyle) && isUndef(data.style) &&
-  //   isUndef(oldData.staticStyle) && isUndef(oldData.style)
-  // ) {
-  //   return
-  // }
-  if (isUndef(data.style) && isUndef(oldData.style)) {
+  if (isUndef(data.staticStyle) && isUndef(data.style) &&
+    isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  ) {
     return
   }
+  // if (isUndef(data.style) && isUndef(oldData.style)) {
+  //   return
+  // }
 
   var elm = vnode.elm,
     classStyle = elm.classStyle,
-    staticStyle = elm.staticStyle;
+    oldStaticStyle = elm.staticStyle,                 // current static style
+    staticStyle = elm.staticStyle = data.staticStyle;  // update static style
 
   var oldStyle = oldData.style || {},
     style = data.style || {};
@@ -6817,16 +6778,17 @@ function updateStyle (oldVnode, vnode) {
   }
   // get difference between styles
   // let mutations = diffObject(oldStyle, style)
-  // let staticMuations = diffObject(oldStaticStyle, staticStyle)  // if we need to diff this ??
+  var staticMuations = diffObject(oldStaticStyle, staticStyle);
+
   var styleMutations = diffObject(oldStyle, style, function (key) {
     // downgrade to static or class
     return staticStyle[key] || classStyle[key] || ''
   });
   // dynamic style has a higher priority
-  // let mutations = extend(staticMuations, styleMutations)
+  var mutations = extend(staticMuations, styleMutations);
 
-  if (!isEmptyObj(styleMutations)) {
-    elm.setStyle(styleMutations);
+  if (!isEmptyObj(mutations)) {
+    elm.setStyle(mutations);
   }
 
   // merge style
@@ -6850,8 +6812,6 @@ var style = {
   update: updateStyle
 }
 
-// import transition from './transition'
-
 var platformModules = [
   attrs,
   klass,
@@ -6860,8 +6820,6 @@ var platformModules = [
 
 /*  */
 
-// the directive module should be applied last, after all
-// built-in modules have been applied.
 var modules = platformModules.concat(baseModules);
 
 var patch = createPatchFunction({
@@ -6872,10 +6830,6 @@ var patch = createPatchFunction({
 var platformDirectives = {
 }
 
-/**
- * generate classname style
- * @param {VNode} vnode
- */
 function genClsStyle(vnode) {
   var staticCls = vnode.data.staticClass;
   staticCls = staticCls ? staticCls.split(' ') : [];
@@ -6948,20 +6902,23 @@ function genEvent(cmp) {
   // all events from this component (contains sub events)
   var m = cmp.$options._eventMap;
 
-  var newEvents = Object.create(null);
+  var newEvents = Object.create(null),
+      hasSubEvs = false;
   // loop with event name to generate handler
   var loop = function ( ev ) {
+    hasSubEvs = true;
     var originEv = (void 0);
-    if (cmp._events[ev]) {
-      originEv = cmp._events[ev];  // originEvent: event listened in <richtext>
+    // if (cmp._events[ev]) {
+    //   originEv = cmp._events[ev]  // originEvent: event listened in <richtext>
+    // }
+    if (originEv = cmp.$listeners[ev]) {
+      originEv = originEv.fns; // originEvent: event listened in <richtext>
     }
 
-    newEvents[ev] = [];
+    // _events to createFnInvoker
+    var _events = [];
     // handle listener to apply subEvents and originEvent
-    newEvents[ev].push(function handler(e) {
-
-      // no validated listener
-      // let hasNoListener = true
+    _events.push(function handler(e) {
 
       // if there is not e.index, means that user didn't click on text which has listener
       // vice versa
@@ -6978,8 +6935,6 @@ function genEvent(cmp) {
 
         // if the index from event has listener
         if (subEvents = m[ev][index]) {
-          // has event now
-          // hasNoListener = false
           // reset stopPropagation, stop bubble to <richtext> and parentNode
           e.stopPropagation = function () {
             isBubbleToText = false;
@@ -6991,20 +6946,35 @@ function genEvent(cmp) {
 
         // bubble to <richtext>
         if (isBubbleToText && originEv) {
-          // hasNoListener = false
           e.stopPropagation = originPropagation;
-          for (var i = 0; i < originEv.length; i++) {
-            originEv[i](e);
+          if (Array.isArray(originEv)) {
+            for (var i = 0; i < originEv.length; i++) {
+              originEv[i](e);
+            }
+          } else if (typeof originEv === 'function') {
+            originEv(e);
           }
         }
       }
+
     });
+
+    newEvents[ev] = createFnInvoker(_events);
   };
 
   for (var ev in m) loop( ev );
 
+  if (!hasSubEvs) {
+    var $listeners = cmp.$listeners;
+    for (var k in $listeners) {
+      if ($listeners.hasOwnProperty(k))
+        { newEvents[k] = createFnInvoker($listeners[k].fns); }
+    }
+  }
+
   // reset component's _events
-  cmp._events = newEvents;
+  // cmp._events = newEvents
+  cmp._shrinkEvents = newEvents;
 }
 
 function resolveChildren (richtextCmp) {
@@ -7058,8 +7028,9 @@ function resolveChildren (richtextCmp) {
 }
 
 function isSameVaules(values, oldValues) {
-  // type of values is Array,
-  // transform to string for compare
+  // type of values is Array
+  if (values.length !== oldValues.length) { return false }
+  // transform to string for comparing
   return (JSON.stringify(values) === JSON.stringify(oldValues))
 }
 
@@ -7077,17 +7048,13 @@ var Richtext = {
     }
 
     return h('text', {
-      on: this._events,
+      on: this._shrinkEvents || {},
       attrs: {
         values: valuesChildren
       }
     })
   }
 }
-
-// import Transition from './transition'
-// import TransitionGroup from './transition-group'
-// import batch from './batch'
 
 var platformComponents = {
   richtext: Richtext
@@ -7152,7 +7119,6 @@ function query (el) {
   return document.body
 }
 
-// install platform specific utils
 Vue.config.mustUseProp = mustUseProp;
 Vue.config.isReservedTag = isReservedTag$1;
 Vue.config.isRuntimeComponent = isRuntimeComponent;

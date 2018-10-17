@@ -1,7 +1,6 @@
-import { extend, cached, camelize, isUndef } from 'shared/util'
+import { extend, isUndef } from 'shared/util'
 import { diffObject, isEmptyObj } from 'viola/util/ops'
 
-const normalize = cached(camelize)
 
 function createStyle (oldVnode, vnode) {
   const elm = vnode.elm,
@@ -21,19 +20,19 @@ function updateStyle (oldVnode, vnode) {
   const data = vnode.data
   const oldData = oldVnode.data
 
-  // if (isUndef(data.staticStyle) && isUndef(data.style) &&
-  //   isUndef(oldData.staticStyle) && isUndef(oldData.style)
-  // ) {
-  //   return
-  // }
-  if (isUndef(data.style) && isUndef(oldData.style)) {
+  if (isUndef(data.staticStyle) && isUndef(data.style) &&
+    isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  ) {
     return
   }
+  // if (isUndef(data.style) && isUndef(oldData.style)) {
+  //   return
+  // }
 
-  let cur, name
   const elm = vnode.elm,
     classStyle = elm.classStyle,
-    staticStyle = elm.staticStyle
+    oldStaticStyle = elm.staticStyle,                 // current static style
+    staticStyle = elm.staticStyle = data.staticStyle  // update static style
 
   let oldStyle = oldData.style || {},
     style = data.style || {}
@@ -52,16 +51,17 @@ function updateStyle (oldVnode, vnode) {
   }
   // get difference between styles
   // let mutations = diffObject(oldStyle, style)
-  // let staticMuations = diffObject(oldStaticStyle, staticStyle)  // if we need to diff this ??
+  let staticMuations = diffObject(oldStaticStyle, staticStyle)
+
   let styleMutations = diffObject(oldStyle, style, (key) => {
     // downgrade to static or class
     return staticStyle[key] || classStyle[key] || ''
   })
   // dynamic style has a higher priority
-  // let mutations = extend(staticMuations, styleMutations)
+  let mutations = extend(staticMuations, styleMutations)
 
-  if (!isEmptyObj(styleMutations)) {
-    elm.setStyle(styleMutations)
+  if (!isEmptyObj(mutations)) {
+    elm.setStyle(mutations)
   }
 
   // merge style
