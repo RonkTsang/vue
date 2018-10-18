@@ -50,6 +50,9 @@ let mutationCache = {
   for the reason is that the static class shounld be const
 */
 function createClass (oldVnode, vnode) {
+  if (!vnode.context.$options._stylesheet) {
+    return
+  }
   const isComponent = /^vue\-component\-/.test(vnode.tag)
   const el = vnode.elm
   // static class
@@ -93,6 +96,9 @@ function createClass (oldVnode, vnode) {
 }
 
 function updateClass (oldVnode, vnode) {
+  if (!vnode.context.$options._stylesheet) {
+    return
+  }
   const el = vnode.elm
 
   const data = vnode.data
