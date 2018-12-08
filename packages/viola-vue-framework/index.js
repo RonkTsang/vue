@@ -48,6 +48,9 @@ function violaConnect(Vue, ctx) {
   };
   // page update
   viola.on('update', function (data) {
+    if (typeof data === 'undefined') {
+      return
+    }
     var cbList, point;
     if (data['viewDidAppear']) {
       cbList = pageHook.pageAppear;

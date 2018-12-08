@@ -47,7 +47,9 @@ function violaConnect(Vue, ctx) {
   }
   // page update
   viola.on('update', (data) => {
-    let list = pageHook.registerList
+    if (typeof data === 'undefined') {
+      return
+    }
     let cbList, point
     if (data['viewDidAppear']) {
       cbList = pageHook.pageAppear

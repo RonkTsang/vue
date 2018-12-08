@@ -1,73 +1,104 @@
 import { extend, isUndef } from 'shared/util'
 import { diffObject, isEmptyObj } from 'viola/util/ops'
+import { getStyle } from 'web/util/style'
 
 
-function createStyle (oldVnode, vnode) {
-  const elm = vnode.elm,
-    staticStyle = vnode.data.staticStyle
-    if (staticStyle) {
-      // if we got the static style, set to elm, as the STATIC style, it shouldn't be changed
-    elm.staticStyle = staticStyle
-    // let the staticStyle be the basic style of elm
-    elm.setStyle(staticStyle)
+function createStyle(oldVnode, vnode) {
+  const data = vnode.data;
+  const oldData = oldVnode.data;
+  if (isUndef(data.staticStyle) && isUndef(data.style) &&
+    isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  ) {
+    return
   }
-  // default that the dynamic style cover the static
-  return updateStyle(oldVnode, vnode)
+  let style = getStyle(vnode, false)
+  if (!isEmptyObj(style)) {
+    vnode.elm.setStyle(style);
+  }
 }
 
-function updateStyle (oldVnode, vnode) {
-
-  const data = vnode.data
-  const oldData = oldVnode.data
+function updateStyle(oldVnode, vnode) {
+  var data = vnode.data;
+  var oldData = oldVnode.data;
 
   if (isUndef(data.staticStyle) && isUndef(data.style) &&
     isUndef(oldData.staticStyle) && isUndef(oldData.style)
   ) {
     return
   }
-  // if (isUndef(data.style) && isUndef(oldData.style)) {
-  //   return
-  // }
 
   const elm = vnode.elm,
     classStyle = elm.classStyle,
-    oldStaticStyle = elm.staticStyle,                 // current static style
-    staticStyle = elm.staticStyle = data.staticStyle  // update static style
+    oldStyle = elm.style
 
-  let oldStyle = oldData.style || {},
-    style = data.style || {}
+  let style = getStyle(vnode, true)
 
-  // merge the style
-  // let oldStyle = extend((oldData.staticStyle || {}), (oldData.style || {}))
-  // let style = extend((data.staticStyle || {}), (data.style || {}))
-  // handle array syntax
-  if (Array.isArray(style)) {
-    style = vnode.data.style = toObject(style)
-  }
-
-  // clone observed objects, as the user probably wants to mutate it
-  if (style.__ob__) {
-    style = vnode.data.style = extend({}, style)
-  }
-  // get difference between styles
-  // let mutations = diffObject(oldStyle, style)
-  let staticMuations = diffObject(oldStaticStyle, staticStyle)
-
-  let styleMutations = diffObject(oldStyle, style, (key) => {
-    // downgrade to static or class
-    return staticStyle[key] || classStyle[key] || ''
+  let mutations = diffObject(oldStyle, style, function (key) {
+    return classStyle[key] || ''
   })
-  // dynamic style has a higher priority
-  let mutations = extend(staticMuations, styleMutations)
-
   if (!isEmptyObj(mutations)) {
     elm.setStyle(mutations)
   }
+  //     if (isEmptyObj(elm.style) && isUndef(data.staticStyle) && isUndef(data.style) &&
+  //       isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  //     ) {
+  //       return
+  //     }
+  //     console.log(getStyle$1(vnode, true));
 
-  // merge style
-  // let mergedStyle = Object.assign({}, oldStyle, style)
-  // and set
-  // elm.setStyle(mergedStyle)
+  //     function noStyle (vnode) {
+  //       return isUndef(vnode.data) || (isUndef(vnode.data.staticStyle) && isUndef(vnode.data.style))
+  //     }
+  // let isUpdate = true
+
+  // if (vnode.componentInstance) {  // cmp
+
+    //       if (noStyle(vnode.componentInstance._vnode)) {
+    //         isUpdate = true
+    //       } else {
+    //         console.log('do not to update')
+    //         isUpdate = false
+    //       }
+    //       let child = vnode.componentInstance, cVNode
+    //       while (child) {
+    //         cVNode = child._vnode
+    //         child = cVNode.componentInstance
+    //         console.log(getStyle$1(cVNode, true))
+    //       }
+    //       if (cVNode._hasUpdate) return
+    //       var classStyle = elm.classStyle
+    //       var oldStyle = extend({}, elm.style)
+    //       var style = getStyle$1(cVNode, true)
+    //       var mutations = diffObject(oldStyle, style, function (key) {
+    //         return classStyle[key] || ''
+    //       });
+    //       if (!isEmptyObj(mutations)) {
+    //         elm.setStyle(mutations);
+    //       }
+    //       cVNode._hasUpdate = true
+    //       isUpdate = false
+
+  // } else {  // normal element
+  //   if (isUndef(data.staticStyle) && isUndef(data.style) &&
+  //     isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  //   ) {
+  //     return
+  //   }
+  // }
+  // if (isUpdate) {
+  //   const elm = vnode.elm,
+  //         classStyle = elm.classStyle,
+  //         oldStyle = elm.style
+
+  //   let style = getStyle(vnode, true)
+
+  //   let mutations = diffObject(oldStyle, style, function (key) {
+  //     return classStyle[key] || ''
+  //   })
+  //   if (!isEmptyObj(mutations)) {
+  //     elm.setStyle(mutations)
+  //   }
+  // }
 }
 
 function toObject (arr) {

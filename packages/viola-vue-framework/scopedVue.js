@@ -693,9 +693,6 @@ Dep.prototype.notify = function notify () {
   }
 };
 
-// the current target watcher being evaluated.
-// this is globally unique because there could be only one
-// watcher being evaluated at any time.
 Dep.target = null;
 var targetStack = [];
 
@@ -1096,11 +1093,6 @@ function dependArray (value) {
 
 /*  */
 
-/**
- * Option overwriting strategies are functions that handle
- * how to merge a parent option value and a child option
- * value into the final value.
- */
 var strats = config.optionMergeStrategies;
 
 /**
@@ -2161,18 +2153,6 @@ function checkProp (
 
 /*  */
 
-// The template compiler attempts to minimize the need for normalization by
-// statically analyzing the template at compile time.
-//
-// For plain HTML markup, normalization can be completely skipped because the
-// generated render function is guaranteed to return Array<VNode>. There are
-// two cases where extra normalization is needed:
-
-// 1. When the children contains components - because a functional component
-// may return an Array instead of a single root. In this case, just a simple
-// normalization is needed - if any child is an Array, we flatten the whole
-// thing with Array.prototype.concat. It is guaranteed to be only 1-level deep
-// because functional components already normalize their own children.
 function simpleNormalizeChildren (children) {
   for (var i = 0; i < children.length; i++) {
     if (Array.isArray(children[i])) {
@@ -3702,9 +3682,6 @@ function resolveInject (inject, vm) {
 
 /*  */
 
-/**
- * Runtime helper for rendering v-for lists.
- */
 function renderList (
   val,
   render
@@ -3736,9 +3713,6 @@ function renderList (
 
 /*  */
 
-/**
- * Runtime helper for rendering <slot>
- */
 function renderSlot (
   name,
   fallback,
@@ -3785,9 +3759,6 @@ function renderSlot (
 
 /*  */
 
-/**
- * Runtime helper for resolving filters
- */
 function resolveFilter (id) {
   return resolveAsset(this.$options, 'filters', id, true) || identity
 }
@@ -3826,9 +3797,6 @@ function checkKeyCodes (
 
 /*  */
 
-/**
- * Runtime helper for merging v-bind="object" into a VNode's data.
- */
 function bindObjectProps (
   data,
   tag,
@@ -4163,13 +4131,10 @@ function mergeProps (to, from) {
 
 // https://github.com/Hanks10100/weex-native-directive/tree/master/component
 
-// listening on native callback
-
 /*  */
 
 /*  */
 
-// inline hooks to be invoked on component VNodes during patch
 var componentVNodeHooks = {
   init: function init (vnode, hydrating) {
     if (
@@ -5212,7 +5177,6 @@ function initGlobalAPI (Vue) {
   initAssetRegisters(Vue);
 }
 
-// initGlobalAPI 的作用是在 Vue 构造函数上挂载静态属性和方法
 initGlobalAPI(Vue);
 
 Object.defineProperty(Vue.prototype, '$isServer', {
@@ -6466,10 +6430,6 @@ var attrs = {
   update: updateAttrs
 }
 
-/*
-  In the progress of createClass, we store the static class,
-  for the reason is that the static class shounld be const
-*/
 function createClass (oldVnode, vnode) {
   if (!vnode.context.$options._stylesheet) {
     return
@@ -6562,7 +6522,7 @@ function updateClass (oldVnode, vnode) {
 }
 
 /**
- * get the dynamic style from vnode
+ * 获得 class 字符串
  * @param {VNode} vnode vnode
  */
 function getDyncClass (vnode) {
@@ -6775,21 +6735,91 @@ var events = {
   update: updateDOMListeners
 }
 
-function createStyle (oldVnode, vnode) {
-  var elm = vnode.elm,
-    staticStyle = vnode.data.staticStyle;
-    if (staticStyle) {
-      // if we got the static style, set to elm, as the STATIC style, it shouldn't be changed
-    elm.staticStyle = staticStyle;
-    // let the staticStyle be the basic style of elm
-    elm.setStyle(staticStyle);
-  }
-  // default that the dynamic style cover the static
-  return updateStyle(oldVnode, vnode)
+/*  */
+
+var parseStyleText = cached(function (cssText) {
+  var res = {};
+  var listDelimiter = /;(?![^(]*\))/g;
+  var propertyDelimiter = /:(.+)/;
+  cssText.split(listDelimiter).forEach(function (item) {
+    if (item) {
+      var tmp = item.split(propertyDelimiter);
+      tmp.length > 1 && (res[tmp[0].trim()] = tmp[1].trim());
+    }
+  });
+  return res
+});
+
+// merge static and dynamic style data on the same vnode
+function normalizeStyleData (data) {
+  var style = normalizeStyleBinding(data.style);
+  // static style is pre-processed into an object during compilation
+  // and is always a fresh object, so it's safe to merge into it
+  return data.staticStyle
+    ? extend(data.staticStyle, style)
+    : style
 }
 
-function updateStyle (oldVnode, vnode) {
+// normalize possible array / string values into Object
+function normalizeStyleBinding (bindingStyle) {
+  if (Array.isArray(bindingStyle)) {
+    return toObject(bindingStyle)
+  }
+  if (typeof bindingStyle === 'string') {
+    return parseStyleText(bindingStyle)
+  }
+  return bindingStyle
+}
 
+/**
+ * parent component style should be after child's
+ * so that parent component's style could override it
+ */
+function getStyle$1 (vnode, checkChild) {
+  var res = {};
+  var styleData;
+
+  if (checkChild) {
+    var childNode = vnode;
+    while (childNode.componentInstance) {
+      childNode = childNode.componentInstance._vnode;
+      if (
+        childNode && childNode.data &&
+        (styleData = normalizeStyleData(childNode.data))
+      ) {
+        extend(res, styleData);
+      }
+    }
+  }
+
+  if ((styleData = normalizeStyleData(vnode.data))) {
+    extend(res, styleData);
+  }
+
+  var parentNode = vnode;
+  while ((parentNode = parentNode.parent)) {
+    if (parentNode.data && (styleData = normalizeStyleData(parentNode.data))) {
+      extend(res, styleData);
+    }
+  }
+  return res
+}
+
+function createStyle(oldVnode, vnode) {
+  var data = vnode.data;
+  var oldData = oldVnode.data;
+  if (isUndef(data.staticStyle) && isUndef(data.style) &&
+    isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  ) {
+    return
+  }
+  var style = getStyle$1(vnode, false);
+  if (!isEmptyObj(style)) {
+    vnode.elm.setStyle(style);
+  }
+}
+
+function updateStyle(oldVnode, vnode) {
   var data = vnode.data;
   var oldData = oldVnode.data;
 
@@ -6798,67 +6828,85 @@ function updateStyle (oldVnode, vnode) {
   ) {
     return
   }
-  // if (isUndef(data.style) && isUndef(oldData.style)) {
-  //   return
-  // }
 
   var elm = vnode.elm,
     classStyle = elm.classStyle,
-    oldStaticStyle = elm.staticStyle,                 // current static style
-    staticStyle = elm.staticStyle = data.staticStyle;  // update static style
+    oldStyle = elm.style;
 
-  var oldStyle = oldData.style || {},
-    style = data.style || {};
+  var style = getStyle$1(vnode, true);
 
-  // merge the style
-  // let oldStyle = extend((oldData.staticStyle || {}), (oldData.style || {}))
-  // let style = extend((data.staticStyle || {}), (data.style || {}))
-  // handle array syntax
-  if (Array.isArray(style)) {
-    style = vnode.data.style = toObject$1(style);
-  }
-
-  // clone observed objects, as the user probably wants to mutate it
-  if (style.__ob__) {
-    style = vnode.data.style = extend({}, style);
-  }
-  // get difference between styles
-  // let mutations = diffObject(oldStyle, style)
-  var staticMuations = diffObject(oldStaticStyle, staticStyle);
-
-  var styleMutations = diffObject(oldStyle, style, function (key) {
-    // downgrade to static or class
-    return staticStyle[key] || classStyle[key] || ''
+  var mutations = diffObject(oldStyle, style, function (key) {
+    return classStyle[key] || ''
   });
-  // dynamic style has a higher priority
-  var mutations = extend(staticMuations, styleMutations);
-
   if (!isEmptyObj(mutations)) {
     elm.setStyle(mutations);
   }
+  //     if (isEmptyObj(elm.style) && isUndef(data.staticStyle) && isUndef(data.style) &&
+  //       isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  //     ) {
+  //       return
+  //     }
+  //     console.log(getStyle$1(vnode, true));
 
-  // merge style
-  // let mergedStyle = Object.assign({}, oldStyle, style)
-  // and set
-  // elm.setStyle(mergedStyle)
-}
+  //     function noStyle (vnode) {
+  //       return isUndef(vnode.data) || (isUndef(vnode.data.staticStyle) && isUndef(vnode.data.style))
+  //     }
+  // let isUpdate = true
 
-function toObject$1 (arr) {
-  var res = {};
-  for (var i = 0; i < arr.length; i++) {
-    if (arr[i]) {
-      extend(res, arr[i]);
-    }
-  }
-  return res
+  // if (vnode.componentInstance) {  // cmp
+
+    //       if (noStyle(vnode.componentInstance._vnode)) {
+    //         isUpdate = true
+    //       } else {
+    //         console.log('do not to update')
+    //         isUpdate = false
+    //       }
+    //       let child = vnode.componentInstance, cVNode
+    //       while (child) {
+    //         cVNode = child._vnode
+    //         child = cVNode.componentInstance
+    //         console.log(getStyle$1(cVNode, true))
+    //       }
+    //       if (cVNode._hasUpdate) return
+    //       var classStyle = elm.classStyle
+    //       var oldStyle = extend({}, elm.style)
+    //       var style = getStyle$1(cVNode, true)
+    //       var mutations = diffObject(oldStyle, style, function (key) {
+    //         return classStyle[key] || ''
+    //       });
+    //       if (!isEmptyObj(mutations)) {
+    //         elm.setStyle(mutations);
+    //       }
+    //       cVNode._hasUpdate = true
+    //       isUpdate = false
+
+  // } else {  // normal element
+  //   if (isUndef(data.staticStyle) && isUndef(data.style) &&
+  //     isUndef(oldData.staticStyle) && isUndef(oldData.style)
+  //   ) {
+  //     return
+  //   }
+  // }
+  // if (isUpdate) {
+  //   const elm = vnode.elm,
+  //         classStyle = elm.classStyle,
+  //         oldStyle = elm.style
+
+  //   let style = getStyle(vnode, true)
+
+  //   let mutations = diffObject(oldStyle, style, function (key) {
+  //     return classStyle[key] || ''
+  //   })
+  //   if (!isEmptyObj(mutations)) {
+  //     elm.setStyle(mutations)
+  //   }
+  // }
 }
 
 var style = {
   create: createStyle,
   update: updateStyle
 }
-
-// import transition from './transition'
 
 var platformModules = [
   attrs,
@@ -6868,8 +6916,6 @@ var platformModules = [
 
 /*  */
 
-// the directive module should be applied last, after all
-// built-in modules have been applied.
 var modules = platformModules.concat(baseModules);
 
 var patch = createPatchFunction({
@@ -6880,10 +6926,6 @@ var patch = createPatchFunction({
 var platformDirectives = {
 }
 
-/**
- * generate classname style
- * @param {VNode} vnode
- */
 function genClsStyle(vnode) {
   var staticCls = vnode.data.staticClass;
   staticCls = staticCls ? staticCls.split(' ') : [];
@@ -6905,7 +6947,7 @@ function genInlineStyle (vnode) {
  * get style from inlineStyle and classStyle
  * @param {VNode} vnode
  */
-function getStyle$1 (vnode) {
+function getStyle$2 (vnode) {
   var vdata = vnode.data;
   if (!vdata) {
     return null
@@ -7066,7 +7108,7 @@ function resolveChildren (richtextCmp) {
       // vaild type
       if (value.type) {
         // generate style
-        var style = getStyle$1(vnode);
+        var style = getStyle$2(vnode);
         style && (value.style = style);
 
         // collect sub event listener
@@ -7109,10 +7151,6 @@ var Richtext = {
     })
   }
 }
-
-// import Transition from './transition'
-// import TransitionGroup from './transition-group'
-// import batch from './batch'
 
 var platformComponents = {
   richtext: Richtext
@@ -7177,7 +7215,6 @@ function query (el) {
   return document.body
 }
 
-// install platform specific utils
 Vue.config.mustUseProp = mustUseProp;
 Vue.config.isReservedTag = isReservedTag$1;
 Vue.config.isRuntimeComponent = isRuntimeComponent;
