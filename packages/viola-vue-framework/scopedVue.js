@@ -6430,6 +6430,10 @@ var attrs = {
   update: updateAttrs
 }
 
+/*
+  In the progress of createClass, we store the static class,
+  for the reason is that the static class shounld be const
+*/
 function createClass (oldVnode, vnode) {
   if (!vnode.context.$options._stylesheet) {
     return
@@ -6438,42 +6442,51 @@ function createClass (oldVnode, vnode) {
   var el = vnode.elm;
   // static class
   // data.staticClass is String, if it equal to '' or undefined, default transform to a []
-  var staticClass = vnode.data.staticClass || [],
-    sStyle = {},
-    copy = {};
+  // let staticClass = vnode.data.staticClass || [],
+  //   sStyle = {},
+  //   copy = {}
   // has length means that it is a class string and we transform it to a Array
-  if (staticClass.length) {
-    staticClass = staticClass.split(' ');
-    sStyle = getStyle(staticClass, vnode);
-    copy = extend({}, sStyle);
-    // store style from static class
-    // el.staticClassStyle = isComponent ? extend(el.staticClassStyle, sStyle) : sStyle
-    // el.staticClassList = staticClass
-  }
+  // if (staticClass.length) {
+  //   staticClass = staticClass.split(' ')
+  //   sStyle = getStyle(staticClass, vnode)
+  //   copy = extend({}, sStyle)
+  //   // store style from static class
+  //   // el.staticClassStyle = isComponent ? extend(el.staticClassStyle, sStyle) : sStyle
+  //   // el.staticClassList = staticClass
+  // }
 
-  // dynamic class
-  var cls = getDyncClass(vnode);
+  var cls = genClass(vnode);
   // get dynamic style
   var res = cls.length ? getStyle(cls, vnode) : {};
   // merge style and set style
-  if (isComponent) {
-    // if vnode is a component, to merge origin class and origin style from el
-    extend(el.staticClassStyle, sStyle);
-    el.staticClassList = el.staticClassList.concat(staticClass);
-    el.setClassStyle({
-      classStyle: extend(copy, res)
-    }, false);
-    el.setClass(cls, false);
-  } else {
-    // if vnode isn't a component, init class and style
-    el.staticClassStyle = sStyle;
-    el.staticClassList = staticClass;
-    el.setClassStyle({
-      classStyle: extend(copy, res)
-    }, true);
-    // set class list
-    el.setClass(cls, true);
-  }
+  el.setClassStyle({
+    classStyle: res
+  }, !isComponent);
+  el.setClass(cls, !isComponent);
+
+  // dynamic class
+  // let cls = getDyncClass(vnode)
+  // // get dynamic style
+  // let res = cls.length ? getStyle(cls, vnode) : {}
+  // // merge style and set style
+  // if (isComponent) {
+  //   // if vnode is a component, to merge origin class and origin style from el
+  //   extend(el.staticClassStyle, sStyle)
+  //   el.staticClassList = el.staticClassList.concat(staticClass)
+  //   el.setClassStyle({
+  //     classStyle: extend(copy, res)
+  //   }, false)
+  //   el.setClass(cls, false)
+  // } else {
+  //   // if vnode isn't a component, init class and style
+  //   el.staticClassStyle = sStyle
+  //   el.staticClassList = staticClass
+  //   el.setClassStyle({
+  //     classStyle: extend(copy, res)
+  //   }, true)
+  //   // set class list
+  //   el.setClass(cls, true)
+  // }
 }
 
 function updateClass (oldVnode, vnode) {
@@ -6492,9 +6505,9 @@ function updateClass (oldVnode, vnode) {
     return
   }
 
-  var cls = getDyncClass(vnode),
+  var cls = genClass(vnode),
     clsStr = cls.join(' ');      // like 'classA classB classC'
-  var oldCls = el.classList,
+  var oldCls = genClass(oldVnode),
     oldClsStr = oldCls.join(' ');
 
   // didn't need to update
@@ -6516,13 +6529,28 @@ function updateClass (oldVnode, vnode) {
   // get classStyle and update mutation
   var updateRes = diffStyle(classList, classMutation, el, vnode);
   // means that there is no any mutation
-  isEmptyObj(updateRes.mutation) && (delete updateRes.mutation);
+  isEmptyObj(updateRes.mutation) && (updateRes.mutation = null);
   el.setClassStyle(updateRes, true);
   el.setClass(classList, true);
 }
 
 /**
- * 获得 class 字符串
+ * 获得 class 数组
+ * @param {VNode} vnode vnode
+ * @return {Array}
+ */
+function genClass (vnode) {
+  var data = vnode.data;
+  var sClass = data.staticClass || ''; // 'className'
+  var cls = getDyncClass(vnode);
+  return (sClass && sClass.split(' ').concat(cls)) || cls
+  // var cls = data.class || ''          // [class name]
+  // cls = (Array.isArray(cls) && cls.join(' ')) || cls
+  // return (sClass + ' ' + cls).replace(/^\s+|\s+$/g, '')
+}
+
+/**
+ * get the dynamic style from vnode
  * @param {VNode} vnode vnode
  */
 function getDyncClass (vnode) {
@@ -6541,7 +6569,6 @@ function getDyncClass (vnode) {
     }
     return res
   }
-  return []
 }
 
 /**
@@ -6557,20 +6584,23 @@ function diffStyle(cur, ref, el, vnode) {
   var add = ref.add;
 
   var inlineStyle = el.style,     // inline style
-    classStyle = el.classStyle,     // all the class style
-    staticCls = el.staticClassStyle; // style from static class
+    classStyle = el.classStyle;     // all the class style
+    // staticCls = el.staticClassStyle // style from static class
   var stylesheet = vnode.context.$options._stylesheet;
   var res = {},                     // for current classList's style
     mutation = {};                   // patch change for native
 
   if (cur.length === 0) {                             // clear all
-    var staStyle;
     for (var key in classStyle) {
-      staStyle = staticCls[key];
       // downgrade to static class
-      res[key] = staStyle || '';
+      res[key] = '';
       // if there is no key in inline style, mutate to static class or blank
-      inlineStyle[key] || (staStyle === classStyle[key]) || (mutation[key] = staStyle || '');
+      inlineStyle[key] || (mutation[key] = '');
+      // staStyle = staticCls[key]
+      // // downgrade to static class
+      // res[key] = staStyle || ''
+      // // if there is no key in inline style, mutate to static class or blank
+      // inlineStyle[key] || (staStyle === classStyle[key]) || (mutation[key] = staStyle || '')
     }
   } else if (rm.length === 0 && add.length !== 0) {   // only add
     // note: 引用类型噢，注意！！
@@ -6595,14 +6625,15 @@ function diffStyle(cur, ref, el, vnode) {
       var cls$1 = rm[i$1],
         style$1 = stylesheet[cls$1] && stylesheet[cls$1].style;
       for (var key$2 in style$1) {
-        // 如果被删除的属性值存在于 res 或 inline style，不应该有 mutation 的值，原因如下：
-        // 1、如果存在 inline style, 此时 native 端的样式已经为 inline style 的值
-        //    所以不能有 mutation[key]
-        // 2、如果存在 res 中，也说明有存在其他类名选择器具有 key 值对应的样式
-        //    所以不能有 mutation[key]
-        // 所以当且仅当 不存在以上两者时，说明这个 key 对应值应该改变
-        // 如果静态类名中具有当前 key，则 downgrade，否则 置空
-        (inlineStyle[key$2] || res[key$2]) || (mutation[key$2] = staticCls[key$2] || '');
+        (inlineStyle[key$2] || res[key$2]) || (mutation[key$2] = '');
+        // // 如果被删除的属性值存在于 res 或 inline style，不应该有 mutation 的值，原因如下：
+        // // 1、如果存在 inline style, 此时 native 端的样式已经为 inline style 的值
+        // //    所以不能有 mutation[key]
+        // // 2、如果存在 res 中，也说明有存在其他类名选择器具有 key 值对应的样式
+        // //    所以不能有 mutation[key]
+        // // 所以当且仅当 不存在以上两者时，说明这个 key 对应值应该改变
+        // // 如果静态类名中具有当前 key，则 downgrade，否则 置空
+        // (inlineStyle[key] || res[key]) || (mutation[key] = staticCls[key] || '')
       }
     }
   }
@@ -6668,7 +6699,12 @@ function mutiExtend(inlineStyle, classStyle, copy) {
       v = _from[k];
       // k isn't exist in inlineStyle
       // k isn't exist in oldClassStyle or the value of k has changed
-      inlineStyle[k] || classStyle[k] == v || (copy[k] = v);
+      // inlineStyle[k] || classStyle[k] == v || (copy[k] = v)
+      // to[k] = v
+      inlineStyle[k] || (copy[k] = v);
+      if (classStyle[k] == v) {
+        delete copy[k];
+      }
       to[k] = v;
     }
   }
