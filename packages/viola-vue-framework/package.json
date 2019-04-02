@@ -1,0 +1,23 @@
+{
+  "name": "@tencent/viola-vue-framework",
+  "version": "0.1.1",
+  "description": "viola-vue",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RonkTsang/vue.git"
+  },
+  "keywords": [
+    "viola",
+    "vue"
+  ],
+  "author": "RonkTsang",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RonkTsang/vue/issues"
+  },
+  "homepage": "https://github.com/RonkTsang/vue#readme"
+}

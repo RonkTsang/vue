@@ -4,33 +4,21 @@ function intoCTX(ctx) {
   var taker = {};
   VueScopeUp(taker, ctx.document);
   violaConnect(taker.Vue, ctx);
+  ctx.Vue = taker.Vue;
   return taker.Vue
 }
 
 function violaConnect(Vue, ctx) {
   // take the violaInstance
   var viola = ctx.viola;
-  //   tasker = viola.tasker
-  // Vue.prototype.$tasker = {
-  //   store (count) {
-  //     return tasker.store(count)
-  //   },
-  //   open (task) {
-  //     return tasker.open(task)
-  //   },
-  //   close () {
-  //     return tasker.close()
-  //   }
-  // }
 
   // hook for status changing from page
   var pageHook = {
-    // registerList: [],
     pageAppear: [],
     pageDisappear: [],
     pageDestroy: []
   };
-  //
+
   Vue.$installPageHook = function (vm) {
     var $options = vm.$options;
     if ($options) {
@@ -46,6 +34,7 @@ function violaConnect(Vue, ctx) {
       }
     }
   };
+
   // page update
   viola.on('update', function (data) {
     if (typeof data === 'undefined') {
@@ -90,8 +79,8 @@ function violaConnect(Vue, ctx) {
 }
 
 var framework = {
+  name: 'vue',
   intoCTX: intoCTX
 }
 
-export { intoCTX };
 export default framework;

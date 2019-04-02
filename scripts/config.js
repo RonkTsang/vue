@@ -203,7 +203,7 @@ const builds = {
     entry: resolve('viola/framework.js'),
     dest: resolve('packages/viola-vue-framework/index.js'),
     format: 'es',
-    env: 'development',
+    // env: 'development',
     plugins: [violaEntryPlugin]
   }
 }
