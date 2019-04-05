@@ -1,6 +1,6 @@
 {
   "name": "@tencent/viola-vue-framework",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "viola-vue",
   "main": "index.js",
   "scripts": {

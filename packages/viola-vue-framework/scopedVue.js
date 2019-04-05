@@ -6347,11 +6347,11 @@ function diffObject(oldObj, obj, rmFnc, addFnc) {
   var copyOld = extend({}, oldObj);
   // get attr add/modify mutation
   for (var key in obj) {
-    var attr = obj[key], oldAttr = (void 0);
-    var isAdd = isUndef(oldAttr = copyOld[key]);
+    var attr = obj[key], oldAttr = copyOld[key];
+    var isAdd = !copyOld.hasOwnProperty(key);
     // set mutaition
     if (attr !== oldAttr) {
-      mutations[key] = addFnc ? addFnc(key, attr, oldAttr) : attr;
+      mutations[key] = addFnc ? addFnc(key, attr, oldAttr) : (isUndef(attr) ? '' : attr);
     }
     !isAdd && (delete copyOld[key]);
   }

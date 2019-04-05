@@ -5,11 +5,11 @@ export function diffObject(oldObj, obj, rmFnc, addFnc) {
   let copyOld = extend({}, oldObj)
   // get attr add/modify mutation
   for (const key in obj) {
-    let attr = obj[key], oldAttr
-    let isAdd = isUndef(oldAttr = copyOld[key])
+    let attr = obj[key], oldAttr = copyOld[key]
+    let isAdd = !copyOld.hasOwnProperty(key)
     // set mutaition
     if (attr !== oldAttr) {
-      mutations[key] = addFnc ? addFnc(key, attr, oldAttr) : attr
+      mutations[key] = addFnc ? addFnc(key, attr, oldAttr) : (isUndef(attr) ? '' : attr)
     }
     !isAdd && (delete copyOld[key])
   }

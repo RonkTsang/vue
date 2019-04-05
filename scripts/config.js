@@ -229,7 +229,8 @@ function genConfig (name) {
       format: opts.format,
       banner: opts.banner,
       name: opts.moduleName || 'Vue'
-    }
+    },
+    _name: name
   }
 
   if (opts.env) {
